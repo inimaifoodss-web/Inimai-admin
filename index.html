@@ -55,7 +55,7 @@ body{padding-bottom:64px}
   }
   document.addEventListener('DOMContentLoaded', function(){
     var L = document.createElement('div'); L.id='login'; L.hidden = !!pin();
-    L.innerHTML = '<form id="lForm" novalidate><h2>இனிமை பேக்ஸ் – அட்மின்</h2><p>உங்கள் அட்மின் PIN-ஐப் போடுங்கள்.</p>'
+    L.innerHTML = '<form id="lForm" novalidate><h2>இனிமை பேக்ஹவுஸ் – அட்மின்</h2><p>உங்கள் அட்மின் PIN-ஐப் போடுங்கள்.</p>'
       + '<input id="lPin" type="password" inputmode="numeric" autocomplete="current-password" maxlength="8" aria-label="PIN">'
       + '<div class="e" id="lErr" role="alert"></div><button type="submit" id="lBtn">உள்ளே செல்</button></form>';
     document.body.appendChild(L);
@@ -167,7 +167,7 @@ header small{display:block;font-weight:400;opacity:.85;font-size:12px}
 </head>
 <body>
 <header>
-  <h1>இனிமை பேக்ஸ் – அட்மின்<small id="upd">ஏற்றுகிறது…</small></h1>
+  <h1>இனிமை பேக்ஹவுஸ் – அட்மின்<small id="upd">ஏற்றுகிறது…</small></h1>
   <button class="icon" id="refresh" type="button">↻ புதுப்பி</button>
 </header>
 <div class="wrap">
@@ -288,7 +288,7 @@ function card(o){
   var acts = el('div','acts'), d = digits(o.phone);
   if (d){
     var call = el('a','a call','📞 அழை'); call.href='tel:+91'+d; acts.appendChild(call);
-    var wa = el('a','a wa','WhatsApp'); wa.href='https://wa.me/91'+d+'?text='+encodeURIComponent('இனிமை பேக்ஸ்: உங்கள் ஆர்டர் '+o.id+' – '); wa.target='_blank'; wa.rel='noopener'; acts.appendChild(wa);
+    var wa = el('a','a wa','WhatsApp'); wa.href='https://wa.me/91'+d+'?text='+encodeURIComponent('இனிமை பேக்ஹவுஸ்: உங்கள் ஆர்டர் '+o.id+' – '); wa.target='_blank'; wa.rel='noopener'; acts.appendChild(wa);
   }
   var bb = el('button','a','🧾 பில் PDF'), bm = el('div','bmsg'); bb.type='button';
   bb.addEventListener('click', function(){ downloadBill(o, bb, bm); });
@@ -338,7 +338,7 @@ function billNode(o){
   var M='#7A1532', G='#1E7B34', B='1px solid #EADBC8';
   var d = css('div','position:fixed;left:-10000px;top:0;width:600px;padding:32px;background:#fff;color:#22140C;font-family:"Noto Sans Tamil",sans-serif;font-size:15px;line-height:1.5');
   var h = css('div','display:flex;align-items:center;justify-content:space-between;border-bottom:3px solid '+M+';padding-bottom:12px');
-  var hl = css('div'); hl.appendChild(css('div','font-family:"Baloo Thambi 2",sans-serif;font-weight:800;font-size:30px;color:'+M+';line-height:1.1',(window.BILL_BRAND||'இனிமை பேக்ஸ்')));
+  var hl = css('div'); hl.appendChild(css('div','font-family:"Baloo Thambi 2",sans-serif;font-weight:800;font-size:30px;color:'+M+';line-height:1.1',(window.BILL_BRAND||'இனிமை பேக்ஹவுஸ்')));
   hl.appendChild(css('div','color:'+G+';font-weight:600;font-size:14px','தரத்தின் அடையாளம், சுவையின் தனித்துவம்!')); h.appendChild(hl);
   var lg = document.createElement('img'); lg.crossOrigin='anonymous'; lg.src=SITE+'logo.png'; lg.style.cssText='height:64px;width:auto'; lg.onerror=function(){ lg.remove(); }; h.appendChild(lg);
   d.appendChild(h);
@@ -374,7 +374,7 @@ function billNode(o){
 function downloadBill(o, btn, msg){
   btn.disabled = true; msg.textContent = 'பில் தயாராகிறது…';
   var node = billNode(o); document.body.appendChild(node);
-  var fname = 'Inimai-Bakes-Bill-' + o.id + '.pdf';
+  var fname = 'Inimai-Bakehouse-Bill-' + o.id + '.pdf';
   Promise.all([
     window.html2canvas ? 0 : loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js'),
     window.jspdf ? 0 : loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'),

@@ -1,7 +1,7 @@
 {
-  "name": "இனிமை பேக்ஸ் அட்மின்",
+  "name": "இனிமை பேக்ஹவுஸ் அட்மின்",
   "short_name": "Inimai Admin",
-  "description": "Inimai Bakes orders and price control",
+  "description": "Inimai Bakehouse orders and price control",
   "start_url": "./",
   "scope": "./",
   "id": "./",
