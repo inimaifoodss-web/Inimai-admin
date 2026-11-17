@@ -1,6 +1,6 @@
 // Inimai Bakehouse admin app – service worker. Only this folder's own files are cached (network first).
 // Orders, prices and PIN checks go straight to Google; nothing from them is stored here.
-var CACHE = 'inimai-admin-v2';
+var CACHE = 'inimai-admin-v3';
 var CORE = ['./', 'index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
 self.addEventListener('install', function (e) {
   e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(CORE); }).then(function () { return self.skipWaiting(); }));

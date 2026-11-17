@@ -56,7 +56,7 @@ body{padding-bottom:64px}
   document.addEventListener('DOMContentLoaded', function(){
     var L = document.createElement('div'); L.id='login'; L.hidden = !!pin();
     L.innerHTML = '<form id="lForm" novalidate><h2>இனிமை பேக்ஹவுஸ் – அட்மின்</h2><p>உங்கள் அட்மின் PIN-ஐப் போடுங்கள்.</p>'
-      + '<input id="lPin" type="password" inputmode="numeric" autocomplete="current-password" maxlength="8" aria-label="PIN">'
+      + '<input id="lPin" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" name="admin-pin" maxlength="8" aria-label="PIN" style="-webkit-text-security:disc">'
       + '<div class="e" id="lErr" role="alert"></div><button type="submit" id="lBtn">உள்ளே செல்</button></form>';
     document.body.appendChild(L);
     var out = document.createElement('button'); out.id='logout'; out.type='button'; out.textContent='🔒 வெளியேறு';
@@ -65,7 +65,7 @@ body{padding-bottom:64px}
     document.getElementById('lForm').addEventListener('submit', function(e){
       e.preventDefault();
       var v = document.getElementById('lPin').value.trim(), b = document.getElementById('lBtn'), er = document.getElementById('lErr');
-      if (!/^\d{6,8}$/.test(v)){ er.textContent = '6–8 இலக்க PIN போடுங்கள்.'; return; }
+      if (!/^\d{6,8}$/.test(v)){ document.getElementById('lPin').value=''; er.textContent = /\D/.test(v) ? 'PIN-ல் எண்கள் (0–9) மட்டுமே இருக்க வேண்டும். Chrome தானாக நிரப்பிய password-ஐ அழித்து, உங்கள் PIN-ஐ மீண்டும் போடுங்கள்.' : '6–8 இலக்க PIN போடுங்கள்.'; return; }
       b.disabled = true; er.textContent = 'சரிபார்க்கிறது…';
       call('ping', [], v).then(function(){
         setPin(v); L.hidden = true; document.getElementById('lPin').value = ''; er.textContent = '';
