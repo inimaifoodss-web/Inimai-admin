@@ -151,6 +151,9 @@ header small{display:block;font-weight:400;opacity:.85;font-size:12px}
 .pimg.none{display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--mu);text-align:center;line-height:1.2;padding:4px}
 .phmsg{font-size:13px;color:var(--g);min-height:0}
 .phmsg.bad{color:var(--r)}
+.pbox{display:flex;gap:12px;align-items:center;border:1px dashed var(--line);border-radius:12px;padding:10px}
+.pbox .a{margin:4px 0}
+.plabel{font-size:13px;color:var(--mu);font-weight:600}
 .pprice{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .pprice b{color:var(--g);font-size:18px}
 .pprice s{color:var(--mu)}
@@ -442,7 +445,17 @@ function editor(p){
   cl.appendChild(s); f.appendChild(cl);
   var t1 = el('div','two'); t1.appendChild(field('அளவு (எ.கா. 400 கி)','unit','text',p.unit)); t1.appendChild(field('Unit (e.g. 400 g)','unitEn','text',p.unitEn)); f.appendChild(t1);
   var t2 = el('div','two'); t2.appendChild(field('விலை ₹','price','number',p.price)); t2.appendChild(field('MRP ₹ (விருப்பம்)','mrp','number',p.mrp)); f.appendChild(t2);
-  f.appendChild(field('படம் link (https://…, விருப்பம்)','img','url',p.img));
+  var pb = el('div','pbox'), pv = el('div','pprev'), pbtn = el('button','a', p.photo ? '📷 வேறு படம் தேர்வு செய்' : '📷 போனிலிருந்து படம் தேர்வு செய்'), pnote = el('div','phmsg');
+  pbtn.type = 'button';
+  var hid = document.createElement('input'); hid.type = 'hidden'; hid.dataset.k = 'img'; hid.value = p.img || '';
+  function preview(){ pv.innerHTML = ''; if (p.photo){ var im = document.createElement('img'); im.className = 'pimg'; im.alt = ''; im.src = p.photo; pv.appendChild(im); } else pv.appendChild(p.id ? thumb(p) : el('div','pimg none','படம் இல்லை')); }
+  preview(); if (p.photo) pnote.textContent = 'சேமி அழுத்தியதும் இந்த படம் பதிவேற்றப்படும்.';
+  pbtn.addEventListener('click', function(){
+    choosePhoto(function(data){ p.photo = data; preview(); pbtn.textContent = '📷 வேறு படம் தேர்வு செய்'; pnote.className = 'phmsg'; pnote.textContent = 'சேமி அழுத்தியதும் இந்த படம் பதிவேற்றப்படும்.'; },
+      function(m){ pnote.className = 'phmsg bad'; pnote.textContent = m; });
+  });
+  var pr2 = el('div'); pr2.appendChild(el('div','plabel','படம்')); pr2.appendChild(pbtn); pr2.appendChild(pnote);
+  pb.appendChild(pv); pb.appendChild(pr2); f.appendChild(pb); f.appendChild(hid);
   var sw = el('label','sw'), cb = document.createElement('input'); cb.type='checkbox'; cb.checked = p.on !== false; cb.dataset.k='on';
   sw.appendChild(cb); sw.appendChild(document.createTextNode('இணையதளத்தில் காட்டு (விற்பனையில்)')); f.appendChild(sw);
   var acts = el('div','acts'), save = el('button','a pri','சேமி'), cancel = el('button','a','ரத்து செய்');
@@ -453,8 +466,14 @@ function editor(p){
     f.querySelectorAll('[data-k]').forEach(function(i){ v[i.dataset.k] = i.type==='checkbox' ? i.checked : i.value.trim(); });
     if (!v.name){ showErr('பெயரை உள்ளிடவும்.'); return; }
     showErr(''); save.disabled = true; save.textContent = 'சேமிக்கிறது…';
-    google.script.run.withSuccessHandler(function(){ EDIT=null; $('pmsg').textContent = '“' + v.name + '” சேமிக்கப்பட்டது. இணையதளத்தில் சில நொடிகளில் மாறும்.'; loadProducts(); })
-      .withFailureHandler(function(e){ save.disabled=false; save.textContent='சேமி'; showErr('சேமிக்க முடியவில்லை: ' + (e && e.message || e)); }).saveProduct(v);
+    var fail = function(e){ save.disabled=false; save.textContent='சேமி'; showErr('சேமிக்க முடியவில்லை: ' + (e && e.message || e)); };
+    google.script.run.withSuccessHandler(function(id){
+      var done = function(msg){ EDIT=null; PHMSG = {id: id || p.id, text: msg}; $('pmsg').textContent = msg; loadProducts(); };
+      if (!p.photo) return done('“' + v.name + '” சேமிக்கப்பட்டது. இணையதளத்தில் சில நொடிகளில் மாறும்.');
+      save.textContent = 'படம் பதிவேற்றுகிறது…';
+      google.script.run.withSuccessHandler(function(){ done('“' + v.name + '” படம் சேமிக்கப்பட்டது. இணையதளத்தில் சில நிமிடங்களில் தெரியும்.'); })
+        .withFailureHandler(function(e){ p.id = id || p.id; fail({message: 'படம்: ' + (e && e.message || e)}); }).uploadPhoto(id || p.id, p.photo);
+    }).withFailureHandler(fail).saveProduct(v);
   });
   acts.appendChild(save); acts.appendChild(cancel); f.appendChild(acts);
   c.appendChild(f); return c;
@@ -542,21 +561,24 @@ function shrink(file){
     fr.readAsDataURL(file);
   });
 }
-function pickPhoto(p, btn, msg){
+function choosePhoto(ok, bad){
   var inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*'; inp.style.display = 'none';
   document.body.appendChild(inp);
   inp.addEventListener('change', function(){
     var f = inp.files && inp.files[0]; inp.remove(); if (!f) return;
-    btn.disabled = true; msg.className = 'phmsg'; msg.textContent = 'படம் பதிவேற்றுகிறது…';
-    shrink(f).then(function(data){
-      google.script.run.withSuccessHandler(function(url){
-        p.img = url; PHMSG = {id: p.id, text: '“' + p.name + '” படம் சேமிக்கப்பட்டது. இணையதளத்தில் சில நிமிடங்களில் தெரியும்.'}; renderProducts();
-      }).withFailureHandler(function(e){
-        btn.disabled = false; msg.className = 'phmsg bad'; msg.textContent = 'படம் சேமிக்க முடியவில்லை: ' + (e && e.message || e);
-      }).uploadPhoto(p.id, data);
-    }, function(){ btn.disabled = false; msg.className = 'phmsg bad'; msg.textContent = 'இந்த படத்தைத் திறக்க முடியவில்லை. JPG / PNG படம் தேர்ந்தெடுக்கவும்.'; });
+    shrink(f).then(ok, function(){ bad('இந்த படத்தைத் திறக்க முடியவில்லை. JPG / PNG படம் தேர்ந்தெடுக்கவும்.'); });
   });
   inp.click();
+}
+function pickPhoto(p, btn, msg){
+  choosePhoto(function(data){
+    btn.disabled = true; msg.className = 'phmsg'; msg.textContent = 'படம் பதிவேற்றுகிறது…';
+    google.script.run.withSuccessHandler(function(url){
+      p.img = url; PHMSG = {id: p.id, text: '“' + p.name + '” படம் சேமிக்கப்பட்டது. இணையதளத்தில் சில நிமிடங்களில் தெரியும்.'}; renderProducts();
+    }).withFailureHandler(function(e){
+      btn.disabled = false; msg.className = 'phmsg bad'; msg.textContent = 'படம் சேமிக்க முடியவில்லை: ' + (e && e.message || e);
+    }).uploadPhoto(p.id, data);
+  }, function(m){ msg.className = 'phmsg bad'; msg.textContent = m; });
 }
 
 // ===== விலை ஏற்றம் / குறைப்பு =====
@@ -656,7 +678,8 @@ setInterval(function(){ if (!document.hidden && !Object.keys(busy).length && !$(
     'பல முறை தவறான PIN. 15 நிமிடம் கழித்து முயற்சிக்கவும்.':'Too many wrong PINs. Try again after 15 minutes.',
     'PIN தவறு.':'Wrong PIN.', 'தெரியாத செயல்':'Unknown action', 'அனுமதி இல்லை':'Not allowed', 'தவறான நிலை':'Invalid status',
     'ஆர்டர் இல்லை':'No orders', 'ஆர்டர் கிடைக்கவில்லை':'Order not found', 'பெயர் தேவை':'Name is required',
-    'பொருள் கிடைக்கவில்லை':'Product not found', '📷 படம்':'📷 Photo', 'படம் இல்லை':'No photo',
+    'பொருள் கிடைக்கவில்லை':'Product not found', '📷 படம்':'📷 Photo', 'படம்':'Photo', '📷 போனிலிருந்து படம் தேர்வு செய்':'📷 Choose photo from phone', '📷 வேறு படம் தேர்வு செய்':'📷 Choose another photo',
+    'சேமி அழுத்தியதும் இந்த படம் பதிவேற்றப்படும்.':'The photo will be uploaded when you press Save.', 'படம் இல்லை':'No photo',
     'படம் பதிவேற்றுகிறது…':'Uploading photo…', '✕ படம் நீக்கு':'✕ Remove photo', 'உறுதியாக படத்தை நீக்கவா?':'Really remove photo?',
     'இந்த படத்தைத் திறக்க முடியவில்லை. JPG / PNG படம் தேர்ந்தெடுக்கவும்.':'Could not open this image. Choose a JPG / PNG photo.',
     'படம் சரியில்லை. JPG / PNG படம் தேர்ந்தெடுக்கவும்.':'Invalid image. Choose a JPG / PNG photo.',
@@ -664,7 +687,7 @@ setInterval(function(){ if (!document.hidden && !Object.keys(busy).length && !$(
   };
   var ERR = {'ஆர்டர்களை ஏற்ற முடியவில்லை':'Could not load orders', 'நிலையை மாற்ற முடியவில்லை':'Could not change status',
     'பொருட்களை ஏற்ற முடியவில்லை':'Could not load products', 'சேமிக்க முடியவில்லை':'Could not save', 'மாற்ற முடியவில்லை':'Could not change',
-    'நீக்க முடியவில்லை':'Could not delete', 'விலை சேமிக்க முடியவில்லை':'Could not save the price', 'படம் சேமிக்க முடியவில்லை':'Could not save the photo'};
+    'நீக்க முடியவில்லை':'Could not delete', 'விலை சேமிக்க முடியவில்லை':'Could not save the price', 'படம் சேமிக்க முடியவில்லை':'Could not save the photo', 'படம்':'Photo'};
   var TA = /[஀-௿]/;
   function prods(){ return (typeof PRODUCTS !== 'undefined' && PRODUCTS) || []; }
   function pn(n){ var p = prods().filter(function(x){ return x.name === n && x.en; })[0]; return p ? p.en : n; }
