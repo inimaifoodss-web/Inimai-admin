@@ -56,7 +56,7 @@ body{padding-bottom:64px}
   document.addEventListener('DOMContentLoaded', function(){
     var L = document.createElement('div'); L.id='login'; L.hidden = !!pin();
     L.innerHTML = '<form id="lForm" novalidate><h2>இனிமை பேக்ஹவுஸ் – அட்மின்</h2><p>உங்கள் அட்மின் PIN-ஐப் போடுங்கள்.</p>'
-      + '<input id="lPin" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" name="admin-pin" maxlength="8" aria-label="PIN" style="-webkit-text-security:disc">'
+      + '<input id="lPin" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" name="admin-pin" maxlength="12" aria-label="PIN" style="-webkit-text-security:disc">'
       + '<div class="e" id="lErr" role="alert"></div><button type="submit" id="lBtn">உள்ளே செல்</button>'
       + '<a id="lReset" href="' + API + '" target="_blank" rel="noopener" style="text-align:center;font-size:14px;color:#1F5FA8">PIN மறந்துவிட்டதா? Gmail மூலம் புதிய PIN அமைக்க</a></form>';
     document.body.appendChild(L);
@@ -66,7 +66,7 @@ body{padding-bottom:64px}
     document.getElementById('lForm').addEventListener('submit', function(e){
       e.preventDefault();
       var v = document.getElementById('lPin').value.trim(), b = document.getElementById('lBtn'), er = document.getElementById('lErr');
-      if (!/^\d{6,8}$/.test(v)){ document.getElementById('lPin').value=''; er.textContent = /\D/.test(v) ? 'PIN-ல் எண்கள் (0–9) மட்டுமே இருக்க வேண்டும். Chrome தானாக நிரப்பிய password-ஐ அழித்து, உங்கள் PIN-ஐ மீண்டும் போடுங்கள்.' : '6–8 இலக்க PIN போடுங்கள்.'; return; }
+      if (!/^[A-Za-z0-9]{6,12}$/.test(v)){ er.textContent = 'PIN 6 முதல் 12 எழுத்து / எண் (இடைவெளி, குறியீடுகள் வேண்டாம்).'; return; }
       b.disabled = true; er.textContent = 'சரிபார்க்கிறது…';
       call('ping', [], v).then(function(){
         setPin(v); L.hidden = true; document.getElementById('lPin').value = ''; er.textContent = '';
@@ -213,8 +213,8 @@ header small{display:block;font-weight:400;opacity:.85;font-size:12px}
   </section>
   <div class="pinbox" id="pinBox" hidden>
     <h2>📱 மொபைல் ஆப் PIN</h2>
-    <p id="pinState">போனில் ஆப் போல திறக்க ஒரு PIN (6–8 இலக்க எண்) அமைக்கவும். யாருக்கும் சொல்ல வேண்டாம்.</p>
-    <input id="pinIn" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" name="new-admin-pin" maxlength="8" placeholder="புதிய PIN (எண்கள் மட்டும்)" style="-webkit-text-security:disc">
+    <p id="pinState">போனில் ஆப் போல திறக்க ஒரு PIN (6–12 எழுத்து / எண், எ.கா. Inimai25) அமைக்கவும். யாருக்கும் சொல்ல வேண்டாம்.</p>
+    <input id="pinIn" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" name="new-admin-pin" maxlength="12" placeholder="புதிய PIN (6–12 எழுத்து / எண்)" style="-webkit-text-security:disc">
     <button class="a pri" type="button" id="pinSave">PIN சேமி</button>
     <div class="pmsg" id="pinMsg" role="status"></div>
   </div>
@@ -519,7 +519,7 @@ if (!window.ADMIN_APP){
   google.script.run.withSuccessHandler(function(has){ if (has) $('pinState').textContent = 'PIN அமைக்கப்பட்டுள்ளது ✓. மாற்ற வேண்டுமானால் புதிய PIN போட்டு சேமிக்கவும்.'; }).withFailureHandler(function(){}).hasAppPin();
   $('pinSave').addEventListener('click', function(){
     var v = $('pinIn').value.trim(), m = $('pinMsg');
-    if (!/^\d{6,8}$/.test(v)){ $('pinIn').value=''; m.textContent = /\D/.test(v) ? 'PIN-ல் எண்கள் (0–9) மட்டுமே இருக்க வேண்டும். பெட்டியில் தானாக வந்ததை அழித்து மீண்டும் போடுங்கள்.' : 'PIN 6 முதல் 8 இலக்க எண்ணாக இருக்க வேண்டும்.'; return; }
+    if (!/^[A-Za-z0-9]{6,12}$/.test(v)){ m.textContent = 'PIN 6 முதல் 12 எழுத்து / எண்ணாக இருக்க வேண்டும் (இடைவெளி, குறியீடுகள் வேண்டாம்).'; return; }
     m.textContent = 'சேமிக்கிறது…';
     google.script.run.withSuccessHandler(function(){ $('pinIn').value=''; m.textContent = 'PIN சேமிக்கப்பட்டது ✓. இப்போது போன் ஆப்பில் இந்த PIN-ஐப் போடுங்கள்.'; $('pinState').textContent = 'PIN அமைக்கப்பட்டுள்ளது ✓.'; })
       .withFailureHandler(function(e){ m.textContent = 'சேமிக்க முடியவில்லை: ' + (e && e.message || e); }).setAppPin(v);
