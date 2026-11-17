@@ -33,7 +33,7 @@ body{padding-bottom:64px}
     return fetch(API, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
       body: JSON.stringify({fn:fn, args:args||[], pin: p != null ? p : pin()})})
       .then(function(r){ return r.json(); }, function(){ throw {code:'net', message:'இணைய இணைப்பு இல்லை. மீண்டும் முயற்சிக்கவும்.'}; })
-      .then(function(j){ if (j && j.ok) return j.result; throw {code: j && j.code, message: (j && j.error) || 'பிழை'}; });
+      .then(function(j){ if (j && j.ok) return j.result; throw {code: j && j.code, message: (j && j.error) || 'Google script பழைய version-ல் உள்ளது. Setup வழிகாட்டியிலிருந்து புதிய code-ஐ paste செய்து New version deploy செய்யவும்.'}; });
   }
   var FNS = ['getOrders','setStatus','getProducts','saveProduct','deleteProduct','changePrice','bulkPrice'];
   function runner(){
@@ -57,7 +57,8 @@ body{padding-bottom:64px}
     var L = document.createElement('div'); L.id='login'; L.hidden = !!pin();
     L.innerHTML = '<form id="lForm" novalidate><h2>இனிமை பேக்ஹவுஸ் – அட்மின்</h2><p>உங்கள் அட்மின் PIN-ஐப் போடுங்கள்.</p>'
       + '<input id="lPin" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" name="admin-pin" maxlength="8" aria-label="PIN" style="-webkit-text-security:disc">'
-      + '<div class="e" id="lErr" role="alert"></div><button type="submit" id="lBtn">உள்ளே செல்</button></form>';
+      + '<div class="e" id="lErr" role="alert"></div><button type="submit" id="lBtn">உள்ளே செல்</button>'
+      + '<a id="lReset" href="' + API + '" target="_blank" rel="noopener" style="text-align:center;font-size:14px;color:#1F5FA8">PIN மறந்துவிட்டதா? Gmail மூலம் புதிய PIN அமைக்க</a></form>';
     document.body.appendChild(L);
     var out = document.createElement('button'); out.id='logout'; out.type='button'; out.textContent='🔒 வெளியேறு';
     out.addEventListener('click', function(){ setPin(''); showLogin(''); });
@@ -213,7 +214,7 @@ header small{display:block;font-weight:400;opacity:.85;font-size:12px}
   <div class="pinbox" id="pinBox" hidden>
     <h2>📱 மொபைல் ஆப் PIN</h2>
     <p id="pinState">போனில் ஆப் போல திறக்க ஒரு PIN (6–8 இலக்க எண்) அமைக்கவும். யாருக்கும் சொல்ல வேண்டாம்.</p>
-    <input id="pinIn" type="password" inputmode="numeric" autocomplete="new-password" maxlength="8" placeholder="புதிய PIN">
+    <input id="pinIn" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" name="new-admin-pin" maxlength="8" placeholder="புதிய PIN (எண்கள் மட்டும்)" style="-webkit-text-security:disc">
     <button class="a pri" type="button" id="pinSave">PIN சேமி</button>
     <div class="pmsg" id="pinMsg" role="status"></div>
   </div>
@@ -518,7 +519,7 @@ if (!window.ADMIN_APP){
   google.script.run.withSuccessHandler(function(has){ if (has) $('pinState').textContent = 'PIN அமைக்கப்பட்டுள்ளது ✓. மாற்ற வேண்டுமானால் புதிய PIN போட்டு சேமிக்கவும்.'; }).withFailureHandler(function(){}).hasAppPin();
   $('pinSave').addEventListener('click', function(){
     var v = $('pinIn').value.trim(), m = $('pinMsg');
-    if (!/^\d{6,8}$/.test(v)){ m.textContent = 'PIN 6 முதல் 8 இலக்க எண்ணாக இருக்க வேண்டும்.'; return; }
+    if (!/^\d{6,8}$/.test(v)){ $('pinIn').value=''; m.textContent = /\D/.test(v) ? 'PIN-ல் எண்கள் (0–9) மட்டுமே இருக்க வேண்டும். பெட்டியில் தானாக வந்ததை அழித்து மீண்டும் போடுங்கள்.' : 'PIN 6 முதல் 8 இலக்க எண்ணாக இருக்க வேண்டும்.'; return; }
     m.textContent = 'சேமிக்கிறது…';
     google.script.run.withSuccessHandler(function(){ $('pinIn').value=''; m.textContent = 'PIN சேமிக்கப்பட்டது ✓. இப்போது போன் ஆப்பில் இந்த PIN-ஐப் போடுங்கள்.'; $('pinState').textContent = 'PIN அமைக்கப்பட்டுள்ளது ✓.'; })
       .withFailureHandler(function(e){ m.textContent = 'சேமிக்க முடியவில்லை: ' + (e && e.message || e); }).setAppPin(v);
