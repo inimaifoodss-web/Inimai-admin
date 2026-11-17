@@ -39,7 +39,7 @@ body{padding-bottom:64px}
       .then(function(r){ return r.json(); }, function(){ throw {code:'net', message:'இணைய இணைப்பு இல்லை. மீண்டும் முயற்சிக்கவும்.'}; })
       .then(function(j){ if (j && j.ok) return j.result; throw {code: j && j.code, message: (j && j.error) || 'Google script பழைய version-ல் உள்ளது. Setup வழிகாட்டியிலிருந்து புதிய code-ஐ paste செய்து New version deploy செய்யவும்.'}; });
   }
-  var FNS = ['getOrders','setStatus','getProducts','saveProduct','deleteProduct','changePrice','bulkPrice','uploadPhoto','removePhoto'];
+  var FNS = ['getOrders','setStatus','getProducts','saveProduct','deleteProduct','changePrice','bulkPrice','uploadPhoto','removePhoto','getShops','setShopStatus'];
   function runner(){
     var ok, fail, r = {withSuccessHandler:function(f){ ok=f; return r; }, withFailureHandler:function(f){ fail=f; return r; }};
     FNS.forEach(function(n){ r[n] = function(){
@@ -138,7 +138,16 @@ header small{display:block;font-weight:400;opacity:.85;font-size:12px}
 .bmsg{font-size:13px;color:var(--g);flex-basis:100%}
 .bmsg a{color:var(--b)}
 .upd{font-size:12px;color:var(--mu);text-align:right;margin-top:6px}
-.tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.tabs{display:grid;grid-template-columns:1fr 1.25fr 1fr;gap:8px;margin-bottom:12px}
+.tab{padding:0 6px;line-height:1.2}
+.shop .kv{font-size:14px;color:var(--ink);line-height:1.5;white-space:pre-line}
+.shop .kv small{color:var(--mu)}
+.shop .code{display:inline-block;background:#FFF3D6;border:1px dashed #C8892B;border-radius:8px;padding:1px 8px;font-weight:700;letter-spacing:.1em}
+.shop.removed{opacity:.75}
+.sacts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.sacts .a{width:100%}
+.a.ok{background:var(--g);border-color:var(--g);color:#fff}
+.smsg{font-size:13px;color:var(--g)}
 .tab{min-height:46px;border-radius:12px;border:1px solid var(--line);background:#fff;font:inherit;font-size:15px;font-weight:700;cursor:pointer;color:var(--ink)}
 .tab[aria-pressed=true]{background:var(--m);border-color:var(--m);color:#fff}
 .prow{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px;display:grid;gap:8px}
@@ -194,7 +203,14 @@ header small{display:block;font-weight:400;opacity:.85;font-size:12px}
   <div class="tabs" role="group" aria-label="பகுதி">
     <button class="tab" type="button" data-tab="orders" aria-pressed="true">ஆர்டர்கள்</button>
     <button class="tab" type="button" data-tab="products" aria-pressed="false">பொருட்கள் / விலை</button>
+    <button class="tab" type="button" data-tab="shops" aria-pressed="false" id="shopTab">கடைகள்</button>
   </div>
+  <section id="vShops" hidden>
+    <p class="note" style="padding:4px 4px 10px;text-align:left">புதிதாகப் பதிவு செய்த கடைகள் “காத்திருப்பு” நிலையில் இருக்கும். நீங்கள் “அனுமதி கொடு” அழுத்திய பிறகுதான் அவர்களுக்கு விலையும் ஆர்டரும் தெரியும்.</p>
+    <div class="chips" id="sfilters" role="group" aria-label="நிலை"></div>
+    <input class="search" id="sq" type="search" placeholder="கடை பெயர், மொபைல், ஊர் தேடுங்கள்">
+    <div class="list" id="slist"><div class="note">ஏற்றுகிறது…</div></div>
+  </section>
   <section id="vOrders">
   <div class="range chips" role="group" aria-label="காலம்">
     <button class="chip" data-r="today" aria-pressed="true" type="button">இன்று</button>
@@ -269,7 +285,7 @@ FILTERS.forEach(function(f){
 });
 document.querySelectorAll('[data-r]').forEach(function(b){ b.addEventListener('click', function(){ RANGE=b.dataset.r; render(); }); });
 $('q').addEventListener('input', function(){ Q=this.value.trim().toLowerCase(); render(); });
-$('refresh').addEventListener('click', load);
+$('refresh').addEventListener('click', function(){ load(); loadShops(); if (!$('vProducts').hidden) loadProducts(); });
 
 function render(){
   document.querySelectorAll('[data-r]').forEach(function(b){ b.setAttribute('aria-pressed', b.dataset.r===RANGE); });
@@ -420,8 +436,9 @@ var PRODUCTS = null, EDIT = null, PQ = '', DELASK = null, PHMSG = null, RMASK = 
 function catName(id){ var c = CATS.filter(function(x){return x[0]===id;})[0]; return c ? c[1] : id; }
 document.querySelectorAll('[data-tab]').forEach(function(b){ b.addEventListener('click', function(){
   document.querySelectorAll('[data-tab]').forEach(function(x){ x.setAttribute('aria-pressed', x===b); });
-  var prod = b.dataset.tab==='products'; $('vOrders').hidden = prod; $('vProducts').hidden = !prod;
-  if (prod && !PRODUCTS) loadProducts();
+  var v = b.dataset.tab; $('vOrders').hidden = v!=='orders'; $('vProducts').hidden = v!=='products'; $('vShops').hidden = v!=='shops';
+  if (v==='products' && !PRODUCTS) loadProducts();
+  if (v==='shops') loadShops();
 }); });
 $('pq').addEventListener('input', function(){ PQ = this.value.trim().toLowerCase(); renderProducts(); });
 $('addP').addEventListener('click', function(){ EDIT = {id:'', cat:'bread', name:'', en:'', unit:'', unitEn:'', price:'', mrp:'', img:'', on:true}; renderProducts(); window.scrollTo(0,0); });
@@ -630,6 +647,87 @@ if (!window.ADMIN_APP){
   }); } catch (x) {}
 }
 
+
+// ===== கடைகள் (பதிவு செய்தவர்கள்): அனுமதி / நீக்கு =====
+var SHOPS = null, SFILTER = 'all', SQ = '', SBUSY = {}, SASK = null, SMSG = {};
+var SST = {pending: ['காத்திருப்பு','s0'], approved: ['அனுமதி','s2'], removed: ['நீக்கப்பட்டது','s3']};
+var SFS = [['all','எல்லாம்'],['pending','காத்திருப்பு'],['approved','அனுமதி'],['removed','நீக்கப்பட்டது']];
+SFS.forEach(function(f){
+  var b = el('button','chip'); b.type='button'; b.dataset.sf=f[0];
+  b.addEventListener('click', function(){ SFILTER=f[0]; renderShops(); }); $('sfilters').appendChild(b);
+});
+$('sq').addEventListener('input', function(){ SQ = this.value.trim().toLowerCase(); renderShops(); });
+function loadShops(){
+  google.script.run.withSuccessHandler(function(list){ SHOPS = list || []; renderShops(); })
+    .withFailureHandler(function(e){ if (!$('vShops').hidden) showErr('கடைகளை ஏற்ற முடியவில்லை: ' + (e && e.message || e)); }).getShops();
+}
+function shopTabCount(){
+  var n = (SHOPS||[]).filter(function(x){ return x.status==='pending'; }).length;
+  $('shopTab').textContent = n ? 'கடைகள் (' + n + ')' : 'கடைகள்';
+}
+function renderShops(){
+  shopTabCount();
+  var all = SHOPS || [], box = $('slist');
+  document.querySelectorAll('#sfilters .chip').forEach(function(b){
+    var f = SFS.filter(function(x){ return x[0]===b.dataset.sf; })[0];
+    b.textContent = f[1] + ' (' + all.filter(function(x){ return f[0]==='all' || x.status===f[0]; }).length + ')';
+    b.setAttribute('aria-pressed', f[0]===SFILTER);
+  });
+  var rank = {pending:0, approved:1, removed:2};
+  var L = all.filter(function(x){ return SFILTER==='all' || x.status===SFILTER; }).filter(function(x){
+    return !SQ || (x.id+' '+x.shop+' '+x.owner+' '+x.phone+' '+x.area+' '+x.addr).toLowerCase().indexOf(SQ) >= 0;
+  }).sort(function(a,b){ return (rank[a.status]-rank[b.status]) || (b.at-a.at); });
+  box.innerHTML = '';
+  if (!SHOPS){ box.appendChild(el('div','note','ஏற்றுகிறது…')); return; }
+  if (!L.length){ box.appendChild(el('div','empty', all.length ? 'இந்தப் பட்டியலில் கடை இல்லை.' : 'இன்னும் எந்தக் கடையும் பதிவு செய்யவில்லை.')); return; }
+  L.forEach(function(x){ box.appendChild(shopCard(x)); });
+}
+function shopCard(x){
+  var st = SST[x.status] || SST.pending, c = el('div','card shop' + (x.status==='removed' ? ' removed' : ''));
+  var r1 = el('div','row'), l = el('div');
+  l.appendChild(el('div','oid', (x.id ? x.id + '  ·  ' : '') + x.shop));
+  l.appendChild(el('div','when', 'பதிவு: ' + (x.at ? fmt(x.at) : '-')));
+  r1.appendChild(l); r1.appendChild(el('span','badge ' + st[1], st[0])); c.appendChild(r1);
+  c.appendChild(el('div','who', x.owner + '  ·  ' + x.phone + (x.type ? '  ·  ' + x.type : '')));
+  c.appendChild(el('div','addr', x.addr + (x.area ? ', ' + x.area : '') + (x.pin ? ' - ' + x.pin : '')));
+  if (x.gst) c.appendChild(el('div','pay', 'GST: ' + x.gst));
+  if (x.code){
+    var cd = el('div','pay', 'WhatsApp குறியீடு: '); var cb = el('span','code', x.code); cb.setAttribute('data-noi18n',''); cd.appendChild(cb);
+    cd.appendChild(document.createTextNode('  ·  இந்த எண்ணிலிருந்து இந்த குறியீட்டுடன் WhatsApp செய்தி வந்ததா என்று பாருங்கள்.'));
+    c.appendChild(cd);
+  }
+  var acts = el('div','acts');
+  var call = el('a','a call','📞 அழை'); call.href = 'tel:+91' + x.phone; acts.appendChild(call);
+  var txt = x.status==='approved' ? 'வணக்கம் ' + x.owner + '! உங்கள் கடை "' + x.shop + '" இனிமை பேக்ஹவுஸில் அனுமதிக்கப்பட்டது ✓. இப்போது விலை பார்த்து ஆர்டர் செய்யலாம்: ' + SITE
+    : 'வணக்கம் ' + x.owner + '! இனிமை பேக்ஹவுஸ் – உங்கள் கடை பதிவு பற்றி: ';
+  var wa = el('a','a wa','WhatsApp'); wa.href = 'https://wa.me/91' + x.phone + '?text=' + encodeURIComponent(txt); wa.target='_blank'; wa.rel='noopener'; acts.appendChild(wa);
+  if (x.map){ var mp = el('a','a','📍 வரைபடம்'); mp.href = x.map; mp.target='_blank'; mp.rel='noopener'; acts.appendChild(mp); }
+  c.appendChild(acts);
+  var sa = el('div','sacts'), busyNow = !!SBUSY[x.phone];
+  function btn(label, cls, key, ask){
+    var b = el('button','a ' + cls, SASK===x.phone+key ? ask : label); b.type='button'; b.disabled = busyNow;
+    b.addEventListener('click', function(){
+      if (ask && SASK !== x.phone+key){ SASK = x.phone+key; renderShops(); return; }
+      SASK = null; setShop(x, key);
+    });
+    sa.appendChild(b);
+  }
+  if (x.status!=='approved') btn(x.status==='removed' ? '↺ மீண்டும் அனுமதி கொடு' : '✓ அனுமதி கொடு', 'ok', 'approved');
+  if (x.status!=='removed') btn('✕ நீக்கு', 'del', 'removed', 'உறுதியாக நீக்கவா?');
+  c.appendChild(sa);
+  if (SMSG[x.phone]) c.appendChild(el('div','smsg', SMSG[x.phone]));
+  return c;
+}
+function setShop(x, key){
+  var old = x.status; SBUSY[x.phone] = 1; x.status = key; delete SMSG[x.phone]; renderShops();
+  google.script.run.withSuccessHandler(function(){
+    delete SBUSY[x.phone];
+    SMSG[x.phone] = key==='approved' ? '✓ அனுமதி கொடுக்கப்பட்டது. கடைக்கு WhatsApp-ல் தெரிவிக்க மேலே உள்ள WhatsApp பட்டனை அழுத்துங்கள்.' : 'கடை நீக்கப்பட்டது. இனி அவர்களுக்கு விலையும் ஆர்டரும் தெரியாது.';
+    renderShops();
+  }).withFailureHandler(function(e){ delete SBUSY[x.phone]; x.status = old; renderShops(); showErr('கடை நிலையை மாற்ற முடியவில்லை: ' + (e && e.message || e)); })
+    .setShopStatus(x.phone, key);
+}
+loadShops();
 setInterval(function(){ if (!document.hidden && !Object.keys(busy).length && !$('vOrders').hidden) load(); }, 60000);
 </script>
 <script>
@@ -683,9 +781,18 @@ setInterval(function(){ if (!document.hidden && !Object.keys(busy).length && !$(
     'படம் பதிவேற்றுகிறது…':'Uploading photo…', '✕ படம் நீக்கு':'✕ Remove photo', 'உறுதியாக படத்தை நீக்கவா?':'Really remove photo?',
     'இந்த படத்தைத் திறக்க முடியவில்லை. JPG / PNG படம் தேர்ந்தெடுக்கவும்.':'Could not open this image. Choose a JPG / PNG photo.',
     'படம் சரியில்லை. JPG / PNG படம் தேர்ந்தெடுக்கவும்.':'Invalid image. Choose a JPG / PNG photo.',
+    'கடைகள்':'Shops', 'காத்திருப்பு':'Waiting', 'அனுமதி':'Approved', 'நீக்கப்பட்டது':'Removed',
+    'புதிதாகப் பதிவு செய்த கடைகள் “காத்திருப்பு” நிலையில் இருக்கும். நீங்கள் “அனுமதி கொடு” அழுத்திய பிறகுதான் அவர்களுக்கு விலையும் ஆர்டரும் தெரியும்.':'Newly registered shops are “Waiting”. They see prices and can order only after you tap “Approve”.',
+    'கடை பெயர், மொபைல், ஊர் தேடுங்கள்':'Search shop, mobile or town', 'இந்தப் பட்டியலில் கடை இல்லை.':'No shops in this list.',
+    'இன்னும் எந்தக் கடையும் பதிவு செய்யவில்லை.':'No shops have registered yet.', 'WhatsApp குறியீடு:':'WhatsApp code:',
+    '·  இந்த எண்ணிலிருந்து இந்த குறியீட்டுடன் WhatsApp செய்தி வந்ததா என்று பாருங்கள்.':'·  Check that a WhatsApp message with this code came from this number.',
+    '📍 வரைபடம்':'📍 Map', '✓ அனுமதி கொடு':'✓ Approve', '↺ மீண்டும் அனுமதி கொடு':'↺ Approve again', '✕ நீக்கு':'✕ Remove',
+    '✓ அனுமதி கொடுக்கப்பட்டது. கடைக்கு WhatsApp-ல் தெரிவிக்க மேலே உள்ள WhatsApp பட்டனை அழுத்துங்கள்.':'✓ Approved. Tap the WhatsApp button above to tell the shop.',
+    'கடை நீக்கப்பட்டது. இனி அவர்களுக்கு விலையும் ஆர்டரும் தெரியாது.':'Shop removed. They can no longer see prices or order.',
+    'கடை கிடைக்கவில்லை':'Shop not found',
     'படம் மிகப் பெரியது (4 MB-க்கு மேல்).':'Photo is too large (over 4 MB).', 'சதவீதம் -90 முதல் 200 வரை இருக்க வேண்டும்':'Percent must be between -90 and 200'
   };
-  var ERR = {'ஆர்டர்களை ஏற்ற முடியவில்லை':'Could not load orders', 'நிலையை மாற்ற முடியவில்லை':'Could not change status',
+  var ERR = {'ஆர்டர்களை ஏற்ற முடியவில்லை':'Could not load orders', 'கடைகளை ஏற்ற முடியவில்லை':'Could not load shops', 'கடை நிலையை மாற்ற முடியவில்லை':'Could not change shop status', 'நிலையை மாற்ற முடியவில்லை':'Could not change status',
     'பொருட்களை ஏற்ற முடியவில்லை':'Could not load products', 'சேமிக்க முடியவில்லை':'Could not save', 'மாற்ற முடியவில்லை':'Could not change',
     'நீக்க முடியவில்லை':'Could not delete', 'விலை சேமிக்க முடியவில்லை':'Could not save the price', 'படம் சேமிக்க முடியவில்லை':'Could not save the photo', 'படம்':'Photo'};
   var TA = /[஀-௿]/;
@@ -711,6 +818,7 @@ setInterval(function(){ if (!document.hidden && !Object.keys(busy).length && !$(
     [/^(\d+) பொருட்களின் விலை மாற்றப்பட்டது\.$/, function(m){ return 'Prices of ' + m[1] + ' products changed.'; }],
     [/^விலை ₹(\d+) (குறை|ஏற்று)$/, function(m){ return (m[2] === 'குறை' ? 'Lower' : 'Raise') + ' price by ₹' + m[1]; }],
     [/^([^:]+): ([\s\S]*)$/, function(m){ return ERR[m[1]] ? ERR[m[1]] + ': ' + tr(m[2]) : null; }],
+    [/^பதிவு: ([\s\S]*)$/, function(m){ return 'Registered: ' + m[1]; }],
     [/^டெலிவரி: ([\s\S]*)$/, function(m){ return 'Delivery: ' + m[1]; }],
     [/^பணம்: ([\s\S]*)$/, function(m){ return 'Payment: ' + m[1].replace(/\nகுறிப்பு: /, '\nNote: '); }]
   ];
