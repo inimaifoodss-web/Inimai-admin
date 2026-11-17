@@ -20,6 +20,10 @@
 #login button{min-height:50px;border:0;border-radius:12px;background:#1E7B34;color:#fff;font:inherit;font-size:17px;font-weight:700}
 #login .e{color:#A3122A;font-size:14px;min-height:20px}
 body{padding-bottom:64px}
+#login .lang{justify-self:end;min-height:34px;padding:0 12px;background:#fff;color:#7A1532;border:1px solid #7A1532;border-radius:999px;font-size:14px;font-weight:600}
+#login .setpin{display:block;text-align:center;padding:12px;border:2px solid #7A1532;border-radius:12px;color:#7A1532;font-weight:700;text-decoration:none}
+#login .hint{font-size:13px;text-align:center}
+#chpin{position:fixed;left:max(12px,env(safe-area-inset-left,0px));bottom:max(12px,env(safe-area-inset-bottom,0px));z-index:6;background:#fff;border:1px solid #EADBC8;border-radius:999px;padding:8px 14px;font-size:13px;color:#6B5446;text-decoration:none}
 #logout{position:fixed;right:max(12px,env(safe-area-inset-right,0px));bottom:max(12px,env(safe-area-inset-bottom,0px));z-index:6;background:#fff;border:1px solid #EADBC8;border-radius:999px;padding:8px 14px;font:inherit;font-size:13px;color:#6B5446}
 </style>
 <script>
@@ -55,14 +59,19 @@ body{padding-bottom:64px}
   }
   document.addEventListener('DOMContentLoaded', function(){
     var L = document.createElement('div'); L.id='login'; L.hidden = !!pin();
-    L.innerHTML = '<form id="lForm" novalidate><h2>இனிமை பேக்ஹவுஸ் – அட்மின்</h2><p>உங்கள் அட்மின் PIN-ஐப் போடுங்கள்.</p>'
+    L.innerHTML = '<form id="lForm" novalidate><button type="button" class="lang langbtn" data-noi18n onclick="toggleAdminLang()">English</button><h2>இனிமை பேக்ஹவுஸ் – அட்மின்</h2><p>உங்கள் அட்மின் PIN-ஐப் போடுங்கள்.</p>'
       + '<input id="lPin" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" name="admin-pin" maxlength="12" aria-label="PIN" style="-webkit-text-security:disc">'
       + '<div class="e" id="lErr" role="alert"></div><button type="submit" id="lBtn">உள்ளே செல்</button>'
-      + '<a id="lReset" href="' + API + '" target="_blank" rel="noopener" style="text-align:center;font-size:14px;color:#1F5FA8">PIN மறந்துவிட்டதா? Gmail மூலம் புதிய PIN அமைக்க</a></form>';
+      + '<p class="hint">முதல் முறையா? கீழே உள்ள பட்டனை அழுத்தி Gmail மூலம் PIN அமைக்கவும்.</p>'
+      + '<a id="lReset" class="setpin" href="' + API + '?setpin=1" target="_blank" rel="noopener">🔑 PIN அமை / மாற்று (Gmail மூலம்)</a>'
+      + '<p class="hint">PIN அமைத்த பிறகு இங்கே திரும்பி வந்து அதைப் போடுங்கள்.</p></form>';
     document.body.appendChild(L);
+    try { L.querySelector('.langbtn').textContent = document.documentElement.lang === 'en' ? 'தமிழ்' : 'English'; } catch(x){}
     var out = document.createElement('button'); out.id='logout'; out.type='button'; out.textContent='🔒 வெளியேறு';
     out.addEventListener('click', function(){ setPin(''); showLogin(''); });
     document.body.appendChild(out);
+    var cp = document.createElement('a'); cp.id='chpin'; cp.href = API + '?setpin=1'; cp.target='_blank'; cp.rel='noopener'; cp.textContent='🔑 PIN மாற்று';
+    document.body.appendChild(cp);
     document.getElementById('lForm').addEventListener('submit', function(e){
       e.preventDefault();
       var v = document.getElementById('lPin').value.trim(), b = document.getElementById('lBtn'), er = document.getElementById('lErr');
@@ -79,7 +88,6 @@ body{padding-bottom:64px}
   });
 })();
 </script>
-
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+Thambi+2:wght@800&family=Noto+Sans+Tamil:wght@400;600;700&display=swap">
 <title>Inimai Admin</title>
 <style>
@@ -164,11 +172,13 @@ header small{display:block;font-weight:400;opacity:.85;font-size:12px}
 .pinbox{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px;margin-top:20px;display:grid;gap:10px}
 .pinbox[hidden]{display:none}
 .pinbox p{margin:0;font-size:13px;color:var(--mu)}
+#langBtn{font-weight:600}
 </style>
 </head>
 <body>
 <header>
   <h1>இனிமை பேக்ஹவுஸ் – அட்மின்<small id="upd">ஏற்றுகிறது…</small></h1>
+  <button class="icon" id="langBtn" type="button" data-noi18n>English</button>
   <button class="icon" id="refresh" type="button">↻ புதுப்பி</button>
 </header>
 <div class="wrap">
@@ -524,9 +534,157 @@ if (!window.ADMIN_APP){
     google.script.run.withSuccessHandler(function(){ $('pinIn').value=''; m.textContent = 'PIN சேமிக்கப்பட்டது ✓. இப்போது போன் ஆப்பில் இந்த PIN-ஐப் போடுங்கள்.'; $('pinState').textContent = 'PIN அமைக்கப்பட்டுள்ளது ✓.'; })
       .withFailureHandler(function(e){ m.textContent = 'சேமிக்க முடியவில்லை: ' + (e && e.message || e); }).setAppPin(v);
   });
+  // போன் ஆப்பின் "PIN அமை" பட்டன் ?setpin=1 உடன் திறக்கும்: PIN பெட்டியை மேலே காட்டு
+  try { google.script.url.getLocation(function(loc){
+    if (!loc || !loc.parameter || !loc.parameter.setpin) return;
+    var w = document.querySelector('.wrap'); w.insertBefore($('pinBox'), w.firstChild);
+    $('pinBox').style.marginTop = '0'; window.scrollTo(0,0); $('pinIn').focus();
+  }); } catch (x) {}
 }
 
 setInterval(function(){ if (!document.hidden && !Object.keys(busy).length && !$('vOrders').hidden) load(); }, 60000);
+</script>
+<script>
+// ===== தமிழ் / English மாற்றம் (திரையில் தெரியும் எழுத்துகள் மட்டும்; Sheet தரவு மாறாது) =====
+(function(){
+  var KEY = 'inimai_admin_lang', LANG = 'ta';
+  try { if (localStorage.getItem(KEY) === 'en') LANG = 'en'; } catch(e){}
+  var D = {
+    'இனிமை பேக்ஹவுஸ் – அட்மின்':'Inimai Bakehouse – Admin', 'ஏற்றுகிறது…':'Loading…', '↻ புதுப்பி':'↻ Refresh',
+    'பகுதி':'Section', 'ஆர்டர்கள்':'Orders', 'பொருட்கள் / விலை':'Products / Prices', 'காலம்':'Period',
+    'இன்று':'Today', '7 நாள்':'7 days', 'இந்த மாதம்':'This month', 'எல்லாம்':'All',
+    'மொத்த ஆர்டர்கள்':'Total orders', 'ஆர்டர் செய்தவர்கள்':'Customers', 'டெலிவரி ஆனது':'Delivered',
+    'டெலிவரி நிலுவை':'Pending delivery', 'ரத்து':'Cancelled', 'விற்பனை (ரத்து தவிர)':'Sales (excl. cancelled)',
+    'நிலை':'Status', 'புதியது':'New', 'உறுதி':'Confirmed', 'நிலுவை':'Pending',
+    'பெயர், மொபைல், ஆர்டர் எண் தேடுங்கள்':'Search name, mobile or order no.',
+    'இந்தப் பட்டியலில் ஆர்டர் இல்லை.':'No orders in this list.', 'இன்னும் ஆர்டர் எதுவும் வரவில்லை.':'No orders yet.',
+    '📞 அழை':'📞 Call', '🧾 பில் PDF':'🧾 Bill PDF', 'பில் தயாராகிறது…':'Preparing bill…',
+    'பில் டவுன்லோட் ஆனது. வரவில்லை என்றால்':'Bill downloaded. If not,', 'இங்கே அழுத்தி திறக்கவும்':'tap here to open it',
+    'பில் உருவாக்க முடியவில்லை. இணையத்தைச் சரிபார்த்து மீண்டும் முயற்சிக்கவும்.':'Could not make the bill. Check the internet and try again.',
+    '+ புதிய பொருள் சேர்':'+ Add new product', 'எல்லா விலையும் ஒரே நேரத்தில் ஏற்ற / குறைக்க':'Raise / lower all prices at once',
+    'வகை':'Category', 'எல்லா வகையும்':'All categories', 'சதவீதம் %':'Percent %', '▼ குறை':'▼ Lower', '▲ ஏற்று':'▲ Raise',
+    'பொருள் தேடுங்கள்':'Search products', 'பிரெட் & பன்':'Bread & Buns', 'ரஸ்க் & டோஸ்ட்':'Rusk & Toast', 'கேக்':'Cakes',
+    'பஃப்ஸ் & காரம்':'Puffs & Savouries', 'பிஸ்கட்':'Biscuits', 'புதிய பொருள்':'New product', 'பெயர் (தமிழ்)':'Name (Tamil)',
+    'அளவு (எ.கா. 400 கி)':'Size in Tamil (e.g. 400 கி)', 'விலை ₹':'Price ₹', 'MRP ₹ (விருப்பம்)':'MRP ₹ (optional)',
+    'படம் link (https://…, விருப்பம்)':'Photo link (https://…, optional)', 'இணையதளத்தில் காட்டு (விற்பனையில்)':'Show on website (on sale)',
+    'சேமி':'Save', 'ரத்து செய்':'Cancel', 'பெயரை உள்ளிடவும்.':'Enter the name.', 'சேமிக்கிறது…':'Saving…',
+    'பொருள் எதுவும் இல்லை.':'No products.', 'விற்பனையில்':'On sale', 'மறைவு':'Hidden', '✏️ திருத்து':'✏️ Edit',
+    'மறை':'Hide', 'காட்டு':'Show', 'உறுதியாக நீக்கவா?':'Really delete?', 'நீக்கு':'Delete',
+    '1 முதல் 100 வரை சதவீதம் போடவும்.':'Enter a percent from 1 to 100.', 'மாற்றுகிறது…':'Updating…',
+    '📱 மொபைல் ஆப் PIN':'📱 Mobile app PIN',
+    'போனில் ஆப் போல திறக்க ஒரு PIN (6–12 எழுத்து / எண், எ.கா. Inimai25) அமைக்கவும். யாருக்கும் சொல்ல வேண்டாம்.':'Set a PIN (6–12 letters / numbers, e.g. Inimai25) to open the phone app. Do not share it.',
+    'புதிய PIN (6–12 எழுத்து / எண்)':'New PIN (6–12 letters / numbers)', 'PIN சேமி':'Save PIN',
+    'PIN அமைக்கப்பட்டுள்ளது ✓. மாற்ற வேண்டுமானால் புதிய PIN போட்டு சேமிக்கவும்.':'PIN is set ✓. To change it, type a new PIN and save.',
+    'PIN அமைக்கப்பட்டுள்ளது ✓.':'PIN is set ✓.',
+    'PIN சேமிக்கப்பட்டது ✓. இப்போது போன் ஆப்பில் இந்த PIN-ஐப் போடுங்கள்.':'PIN saved ✓. Now enter this PIN in the phone app.',
+    'PIN 6 முதல் 12 எழுத்து / எண்ணாக இருக்க வேண்டும் (இடைவெளி, குறியீடுகள் வேண்டாம்).':'PIN must be 6–12 letters / numbers (no spaces or symbols).',
+    'PIN 6 முதல் 12 எழுத்து / எண் (இடைவெளி, குறியீடுகள் வேண்டாம்).':'PIN must be 6–12 letters / numbers (no spaces or symbols).',
+    'உங்கள் அட்மின் PIN-ஐப் போடுங்கள்.':'Enter your admin PIN.', 'உள்ளே செல்':'Log in', 'சரிபார்க்கிறது…':'Checking…',
+    'PIN மறந்துவிட்டதா? Gmail மூலம் புதிய PIN அமைக்க':'Forgot PIN? Set a new PIN with Gmail',
+    '🔑 PIN அமை / மாற்று (Gmail மூலம்)':'🔑 Set / change PIN (with Gmail)', '🔑 PIN மாற்று':'🔑 Change PIN',
+    'முதல் முறையா? கீழே உள்ள பட்டனை அழுத்தி Gmail மூலம் PIN அமைக்கவும்.':'First time? Tap the button below to set a PIN with Gmail.',
+    'PIN அமைத்த பிறகு இங்கே திரும்பி வந்து அதைப் போடுங்கள்.':'After setting the PIN, come back here and enter it.',
+    '🔒 வெளியேறு':'🔒 Log out', 'இணைய இணைப்பு இல்லை. மீண்டும் முயற்சிக்கவும்.':'No internet connection. Please try again.',
+    'Google script பழைய version-ல் உள்ளது. Setup வழிகாட்டியிலிருந்து புதிய code-ஐ paste செய்து New version deploy செய்யவும்.':'The Google script is an old version. Paste the new code from the setup guide and deploy a New version.',
+    'மொபைல் ஆப் PIN இன்னும் அமைக்கவில்லை. Google அட்மின் பக்கத்தில் PIN அமைக்கவும்.':'The app PIN is not set yet. Tap "Set PIN" below and set it with Gmail.',
+    'பல முறை தவறான PIN. 15 நிமிடம் கழித்து முயற்சிக்கவும்.':'Too many wrong PINs. Try again after 15 minutes.',
+    'PIN தவறு.':'Wrong PIN.', 'தெரியாத செயல்':'Unknown action', 'அனுமதி இல்லை':'Not allowed', 'தவறான நிலை':'Invalid status',
+    'ஆர்டர் இல்லை':'No orders', 'ஆர்டர் கிடைக்கவில்லை':'Order not found', 'பெயர் தேவை':'Name is required',
+    'பொருள் கிடைக்கவில்லை':'Product not found', 'சதவீதம் -90 முதல் 200 வரை இருக்க வேண்டும்':'Percent must be between -90 and 200'
+  };
+  var ERR = {'ஆர்டர்களை ஏற்ற முடியவில்லை':'Could not load orders', 'நிலையை மாற்ற முடியவில்லை':'Could not change status',
+    'பொருட்களை ஏற்ற முடியவில்லை':'Could not load products', 'சேமிக்க முடியவில்லை':'Could not save', 'மாற்ற முடியவில்லை':'Could not change',
+    'நீக்க முடியவில்லை':'Could not delete', 'விலை சேமிக்க முடியவில்லை':'Could not save the price'};
+  var TA = /[஀-௿]/;
+  function prods(){ return (typeof PRODUCTS !== 'undefined' && PRODUCTS) || []; }
+  function pn(n){ var p = prods().filter(function(x){ return x.name === n && x.en; })[0]; return p ? p.en : n; }
+  function unitEn(u){ var p = prods().filter(function(x){ return x.unit === u && x.unitEn; })[0]; return p ? p.unitEn : null; }
+  function cat(c){ return c === 'எல்லா' ? 'All' : (D[c] || c); }
+  var P = [
+    [/^(.+) \((\d+)\)$/, function(m){ return D[m[1]] ? D[m[1]] + ' (' + m[2] + ')' : null; }],
+    [/^கடைசியாக புதுப்பித்தது (.+)$/, function(m){ return 'Last updated ' + m[1]; }],
+    [/^நிலை மாற்றியது: (.+)$/, function(m){ return 'Status changed: ' + m[1]; }],
+    [/^மொத்தம்: (₹[\d,.]+)(?:  \(டெலிவரி (₹[\d,.]+)\))?$/, function(m){ return 'Total: ' + m[1] + (m[2] ? '  (delivery ' + m[2] + ')' : ''); }],
+    [/^திருத்து: ([\s\S]+)$/, function(m){ return 'Edit: ' + pn(m[1]); }],
+    [/^“([\s\S]+)” சேமிக்கப்பட்டது\. இணையதளத்தில் சில நொடிகளில் மாறும்\.$/, function(m){ return '“' + pn(m[1]) + '” saved. The website will update in a few seconds.'; }],
+    [/^“([\s\S]+)” இணையதளத்தில் காட்டப்படும்\.$/, function(m){ return '“' + pn(m[1]) + '” will be shown on the website.'; }],
+    [/^“([\s\S]+)” இணையதளத்திலிருந்து மறைக்கப்பட்டது\.$/, function(m){ return '“' + pn(m[1]) + '” is hidden from the website.'; }],
+    [/^“([\s\S]+)” நீக்கப்பட்டது\.$/, function(m){ return '“' + pn(m[1]) + '” deleted.'; }],
+    [/^“([\s\S]+)” புதிய விலை (₹[\d,.]+) சேமிக்கப்பட்டது\.$/, function(m){ return '“' + pn(m[1]) + '” new price ' + m[2] + ' saved.'; }],
+    [/^(.+) பொருட்களின் விலை ([\d.]+)% (ஏறும்|குறையும்)\. உறுதி செய்ய மீண்டும் அதே பட்டனை அழுத்தவும்\.$/, function(m){
+      return 'Prices of ' + cat(m[1]) + ' products will go ' + (m[3] === 'ஏறும்' ? 'UP' : 'DOWN') + ' by ' + m[2] + '%. Press the same button again to confirm.'; }],
+    [/^(\d+) பொருட்களின் விலை மாற்றப்பட்டது\.$/, function(m){ return 'Prices of ' + m[1] + ' products changed.'; }],
+    [/^விலை ₹(\d+) (குறை|ஏற்று)$/, function(m){ return (m[2] === 'குறை' ? 'Lower' : 'Raise') + ' price by ₹' + m[1]; }],
+    [/^([^:]+): ([\s\S]*)$/, function(m){ return ERR[m[1]] ? ERR[m[1]] + ': ' + tr(m[2]) : null; }],
+    [/^டெலிவரி: ([\s\S]*)$/, function(m){ return 'Delivery: ' + m[1]; }],
+    [/^பணம்: ([\s\S]*)$/, function(m){ return 'Payment: ' + m[1].replace(/\nகுறிப்பு: /, '\nNote: '); }]
+  ];
+  function core(s){
+    if (D[s]) return D[s];
+    for (var i = 0; i < P.length; i++){ var m = P[i][0].exec(s); if (m){ var r = P[i][1](m); if (r != null) return r; } }
+    if (s.indexOf(' · ') > 0) return s.split(' · ').map(function(x){ return tr(x); }).join(' · ');
+    var n = pn(s); if (n !== s) return n;
+    var u = unitEn(s); if (u) return u;
+    return s;
+  }
+  function tr(s){
+    if (!s || !TA.test(s)) return s;
+    var m = /^(\s*)([\s\S]*?)(\s*)$/.exec(s);
+    return m[1] + core(m[2]) + m[3];
+  }
+  var TX = new WeakMap(), AT = new WeakMap(), ATTRS = ['placeholder', 'aria-label', 'title'];
+  function skip(n){
+    for (var e = n.nodeType === 1 ? n : n.parentNode; e && e !== document; e = e.parentNode){
+      if (e.nodeType !== 1) continue;
+      if (e.hasAttribute('data-noi18n') || /^(SCRIPT|STYLE|TEXTAREA)$/.test(e.tagName) || (e.style && e.style.left === '-10000px')) return true;
+    }
+    return false;
+  }
+  function text(t){
+    var r = TX.get(t);
+    if (!r || t.data !== r.cur){ r = {ta: t.data}; TX.set(t, r); }
+    var want = LANG === 'en' ? tr(r.ta) : r.ta;
+    r.cur = want; if (t.data !== want) t.data = want;
+  }
+  function attrs(e){
+    var map = AT.get(e); if (!map){ map = {}; AT.set(e, map); }
+    ATTRS.forEach(function(a){
+      if (!e.hasAttribute(a)) return;
+      var v = e.getAttribute(a), r = map[a];
+      if (!r || v !== r.cur){ r = map[a] = {ta: v}; }
+      var want = LANG === 'en' ? tr(r.ta) : r.ta;
+      r.cur = want; if (v !== want) e.setAttribute(a, want);
+    });
+  }
+  function walk(root){
+    if (!root || skip(root)) return;
+    if (root.nodeType === 3){ text(root); return; }
+    if (root.nodeType !== 1) return;
+    attrs(root);
+    var w = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, {acceptNode: function(n){
+      if (n.nodeType === 1 && (n.hasAttribute('data-noi18n') || /^(SCRIPT|STYLE|TEXTAREA)$/.test(n.tagName) || n.style.left === '-10000px')) return NodeFilter.FILTER_REJECT;
+      return NodeFilter.FILTER_ACCEPT; }});
+    var n; while ((n = w.nextNode())){ if (n.nodeType === 3) text(n); else attrs(n); }
+  }
+  function apply(){
+    document.documentElement.lang = LANG;
+    document.title = LANG === 'en' ? 'Inimai Bakehouse – Admin' : 'இனிமை பேக்ஹவுஸ் – அட்மின்';
+    document.querySelectorAll('.langbtn,#langBtn').forEach(function(b){ b.textContent = LANG === 'en' ? 'தமிழ்' : 'English'; });
+    walk(document.body);
+  }
+  window.setAdminLang = function(l){ LANG = l === 'en' ? 'en' : 'ta'; try { localStorage.setItem(KEY, LANG); } catch(e){} apply(); };
+  window.toggleAdminLang = function(){ window.setAdminLang(LANG === 'en' ? 'ta' : 'en'); };
+  var lb = document.getElementById('langBtn'); if (lb) lb.addEventListener('click', window.toggleAdminLang);
+  new MutationObserver(function(list){
+    if (LANG !== 'en') return;
+    list.forEach(function(m){
+      if (m.type === 'childList') m.addedNodes.forEach(walk);
+      else if (m.type === 'characterData'){ if (!skip(m.target)) text(m.target); }
+      else if (m.type === 'attributes'){ if (!skip(m.target)) attrs(m.target); }
+    });
+  }).observe(document.body, {childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ATTRS});
+  apply();
+})();
 </script>
 </body>
 </html>
