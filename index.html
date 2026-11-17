@@ -39,7 +39,7 @@ body{padding-bottom:64px}
       .then(function(r){ return r.json(); }, function(){ throw {code:'net', message:'இணைய இணைப்பு இல்லை. மீண்டும் முயற்சிக்கவும்.'}; })
       .then(function(j){ if (j && j.ok) return j.result; throw {code: j && j.code, message: (j && j.error) || 'Google script பழைய version-ல் உள்ளது. Setup வழிகாட்டியிலிருந்து புதிய code-ஐ paste செய்து New version deploy செய்யவும்.'}; });
   }
-  var FNS = ['getOrders','setStatus','getProducts','saveProduct','deleteProduct','changePrice','bulkPrice'];
+  var FNS = ['getOrders','setStatus','getProducts','saveProduct','deleteProduct','changePrice','bulkPrice','uploadPhoto','removePhoto'];
   function runner(){
     var ok, fail, r = {withSuccessHandler:function(f){ ok=f; return r; }, withFailureHandler:function(f){ fail=f; return r; }};
     FNS.forEach(function(n){ r[n] = function(){
@@ -146,6 +146,11 @@ header small{display:block;font-weight:400;opacity:.85;font-size:12px}
 .ptop{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
 .pname{font-weight:700;font-size:15px}
 .pmeta{font-size:13px;color:var(--mu)}
+.ptop .pl{display:flex;gap:10px;align-items:center;min-width:0}
+.pimg{width:72px;height:72px;border-radius:12px;object-fit:cover;background:var(--cream,#FAF6F0);border:1px solid var(--line);flex:none}
+.pimg.none{display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--mu);text-align:center;line-height:1.2;padding:4px}
+.phmsg{font-size:13px;color:var(--g);min-height:0}
+.phmsg.bad{color:var(--r)}
 .pprice{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .pprice b{color:var(--g);font-size:18px}
 .pprice s{color:var(--mu)}
@@ -408,7 +413,7 @@ function downloadBill(o, btn, msg){
 
 // ===== பொருட்கள் =====
 var CATS = [['bread','பிரெட் & பன்'],['rusk','ரஸ்க் & டோஸ்ட்'],['cake','கேக்'],['puff','பஃப்ஸ் & காரம்'],['biscuit','பிஸ்கட்']];
-var PRODUCTS = null, EDIT = null, PQ = '', DELASK = null;
+var PRODUCTS = null, EDIT = null, PQ = '', DELASK = null, PHMSG = null, RMASK = null;
 function catName(id){ var c = CATS.filter(function(x){return x[0]===id;})[0]; return c ? c[1] : id; }
 document.querySelectorAll('[data-tab]').forEach(function(b){ b.addEventListener('click', function(){
   document.querySelectorAll('[data-tab]').forEach(function(x){ x.setAttribute('aria-pressed', x===b); });
@@ -468,9 +473,10 @@ function renderProducts(){
   if (!list.length) L.appendChild(el('div','empty','பொருள் எதுவும் இல்லை.'));
   list.forEach(function(p){
     if (EDIT && EDIT.id === p.id){ L.appendChild(editor(EDIT)); return; }
-    var c = el('div','prow' + (p.on ? '' : ' off')), top = el('div','ptop'), l = el('div');
+    var c = el('div','prow' + (p.on ? '' : ' off')), top = el('div','ptop'), pl = el('div','pl'), l = el('div');
+    pl.appendChild(thumb(p));
     l.appendChild(el('div','pname', p.name)); l.appendChild(el('div','pmeta', (p.en ? p.en + ' · ' : '') + (p.unit || '') + ' · ' + catName(p.cat)));
-    top.appendChild(l); top.appendChild(el('span','badge ' + (p.on ? 's2' : 's3'), p.on ? 'விற்பனையில்' : 'மறைவு'));
+    pl.appendChild(l); top.appendChild(pl); top.appendChild(el('span','badge ' + (p.on ? 's2' : 's3'), p.on ? 'விற்பனையில்' : 'மறைவு'));
     c.appendChild(top);
     var pr = el('div','qp');
     [[-5,'−5','dn'],[-1,'−1','dn']].forEach(function(x){ var b=el('button',x[2],x[1]); b.type='button'; b.setAttribute('aria-label','விலை ₹'+(-x[0])+' குறை'); b.addEventListener('click', function(){ nudge(p, x[0]); }); pr.appendChild(b); });
@@ -488,11 +494,71 @@ function renderProducts(){
       google.script.run.withSuccessHandler(function(){ $('pmsg').textContent = '“' + p.name + '” நீக்கப்பட்டது.'; loadProducts(); })
         .withFailureHandler(function(err){ showErr('நீக்க முடியவில்லை: ' + (err && err.message || err)); renderProducts(); }).deleteProduct(p.id);
     });
-    acts.appendChild(e); acts.appendChild(o); acts.appendChild(d); c.appendChild(acts);
+    var ph = el('button','a', '📷 படம்'), pm = el('div','phmsg', PHMSG && PHMSG.id === p.id ? PHMSG.text : ''); ph.type = 'button';
+    ph.addEventListener('click', function(){ PHMSG = null; pickPhoto(p, ph, pm); });
+    acts.appendChild(ph);
+    if (/^https:\/\/lh3\.googleusercontent\.com\//.test(String(p.img || ''))){
+      var rp = el('button','a', RMASK === p.id ? 'உறுதியாக படத்தை நீக்கவா?' : '✕ படம் நீக்கு'); rp.type = 'button';
+      rp.addEventListener('click', function(){
+        if (RMASK !== p.id){ RMASK = p.id; renderProducts(); return; }
+        RMASK = null; rp.disabled = true;
+        google.script.run.withSuccessHandler(function(){ p.img = ''; PHMSG = {id: p.id, text: '“' + p.name + '” படம் நீக்கப்பட்டது.'}; renderProducts(); })
+          .withFailureHandler(function(err){ showErr('மாற்ற முடியவில்லை: ' + (err && err.message || err)); renderProducts(); }).removePhoto(p.id);
+      });
+      acts.appendChild(rp);
+    }
+    acts.appendChild(e); acts.appendChild(o); acts.appendChild(d); c.appendChild(acts); c.appendChild(pm);
     L.appendChild(c);
   });
 }
 load();
+// ===== பொருள் படம் (போனிலிருந்து பதிவேற்று → Google Drive → இணையதளம்) =====
+function photoSrc(p){
+  var im = String(p.img || '');
+  if (/^https:\/\//.test(im)) return im;
+  if (/^img\/products\/[\w.-]+$/.test(im)) return SITE + im;
+  return SITE + 'img/products/' + encodeURIComponent(p.id) + '.jpg';
+}
+function thumb(p){
+  var im = document.createElement('img'); im.className = 'pimg'; im.alt = ''; im.loading = 'lazy'; im.src = photoSrc(p);
+  im.onerror = function(){ var n = el('div','pimg none','படம் இல்லை'); if (im.parentNode) im.parentNode.replaceChild(n, im); };
+  return im;
+}
+function shrink(file){
+  return new Promise(function(res, rej){
+    var fr = new FileReader();
+    fr.onerror = rej;
+    fr.onload = function(){
+      var img = new Image();
+      img.onerror = function(){ rej(new Error('bad')); };
+      img.onload = function(){
+        var M = 1200, w = img.naturalWidth, h = img.naturalHeight, k = Math.min(1, M / Math.max(w, h));
+        var cv = document.createElement('canvas'); cv.width = Math.round(w * k); cv.height = Math.round(h * k);
+        var cx = cv.getContext('2d'); cx.fillStyle = '#fff'; cx.fillRect(0, 0, cv.width, cv.height); cx.drawImage(img, 0, 0, cv.width, cv.height);
+        res(cv.toDataURL('image/jpeg', 0.85));
+      };
+      img.src = fr.result;
+    };
+    fr.readAsDataURL(file);
+  });
+}
+function pickPhoto(p, btn, msg){
+  var inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*'; inp.style.display = 'none';
+  document.body.appendChild(inp);
+  inp.addEventListener('change', function(){
+    var f = inp.files && inp.files[0]; inp.remove(); if (!f) return;
+    btn.disabled = true; msg.className = 'phmsg'; msg.textContent = 'படம் பதிவேற்றுகிறது…';
+    shrink(f).then(function(data){
+      google.script.run.withSuccessHandler(function(url){
+        p.img = url; PHMSG = {id: p.id, text: '“' + p.name + '” படம் சேமிக்கப்பட்டது. இணையதளத்தில் சில நிமிடங்களில் தெரியும்.'}; renderProducts();
+      }).withFailureHandler(function(e){
+        btn.disabled = false; msg.className = 'phmsg bad'; msg.textContent = 'படம் சேமிக்க முடியவில்லை: ' + (e && e.message || e);
+      }).uploadPhoto(p.id, data);
+    }, function(){ btn.disabled = false; msg.className = 'phmsg bad'; msg.textContent = 'இந்த படத்தைத் திறக்க முடியவில்லை. JPG / PNG படம் தேர்ந்தெடுக்கவும்.'; });
+  });
+  inp.click();
+}
+
 // ===== விலை ஏற்றம் / குறைப்பு =====
 CATS.forEach(function(c){ var o=document.createElement('option'); o.value=c[0]; o.textContent=c[1]; $('bCat').appendChild(o); });
 var bulkAsk = 0;
@@ -590,11 +656,15 @@ setInterval(function(){ if (!document.hidden && !Object.keys(busy).length && !$(
     'பல முறை தவறான PIN. 15 நிமிடம் கழித்து முயற்சிக்கவும்.':'Too many wrong PINs. Try again after 15 minutes.',
     'PIN தவறு.':'Wrong PIN.', 'தெரியாத செயல்':'Unknown action', 'அனுமதி இல்லை':'Not allowed', 'தவறான நிலை':'Invalid status',
     'ஆர்டர் இல்லை':'No orders', 'ஆர்டர் கிடைக்கவில்லை':'Order not found', 'பெயர் தேவை':'Name is required',
-    'பொருள் கிடைக்கவில்லை':'Product not found', 'சதவீதம் -90 முதல் 200 வரை இருக்க வேண்டும்':'Percent must be between -90 and 200'
+    'பொருள் கிடைக்கவில்லை':'Product not found', '📷 படம்':'📷 Photo', 'படம் இல்லை':'No photo',
+    'படம் பதிவேற்றுகிறது…':'Uploading photo…', '✕ படம் நீக்கு':'✕ Remove photo', 'உறுதியாக படத்தை நீக்கவா?':'Really remove photo?',
+    'இந்த படத்தைத் திறக்க முடியவில்லை. JPG / PNG படம் தேர்ந்தெடுக்கவும்.':'Could not open this image. Choose a JPG / PNG photo.',
+    'படம் சரியில்லை. JPG / PNG படம் தேர்ந்தெடுக்கவும்.':'Invalid image. Choose a JPG / PNG photo.',
+    'படம் மிகப் பெரியது (4 MB-க்கு மேல்).':'Photo is too large (over 4 MB).', 'சதவீதம் -90 முதல் 200 வரை இருக்க வேண்டும்':'Percent must be between -90 and 200'
   };
   var ERR = {'ஆர்டர்களை ஏற்ற முடியவில்லை':'Could not load orders', 'நிலையை மாற்ற முடியவில்லை':'Could not change status',
     'பொருட்களை ஏற்ற முடியவில்லை':'Could not load products', 'சேமிக்க முடியவில்லை':'Could not save', 'மாற்ற முடியவில்லை':'Could not change',
-    'நீக்க முடியவில்லை':'Could not delete', 'விலை சேமிக்க முடியவில்லை':'Could not save the price'};
+    'நீக்க முடியவில்லை':'Could not delete', 'விலை சேமிக்க முடியவில்லை':'Could not save the price', 'படம் சேமிக்க முடியவில்லை':'Could not save the photo'};
   var TA = /[஀-௿]/;
   function prods(){ return (typeof PRODUCTS !== 'undefined' && PRODUCTS) || []; }
   function pn(n){ var p = prods().filter(function(x){ return x.name === n && x.en; })[0]; return p ? p.en : n; }
@@ -609,6 +679,8 @@ setInterval(function(){ if (!document.hidden && !Object.keys(busy).length && !$(
     [/^“([\s\S]+)” சேமிக்கப்பட்டது\. இணையதளத்தில் சில நொடிகளில் மாறும்\.$/, function(m){ return '“' + pn(m[1]) + '” saved. The website will update in a few seconds.'; }],
     [/^“([\s\S]+)” இணையதளத்தில் காட்டப்படும்\.$/, function(m){ return '“' + pn(m[1]) + '” will be shown on the website.'; }],
     [/^“([\s\S]+)” இணையதளத்திலிருந்து மறைக்கப்பட்டது\.$/, function(m){ return '“' + pn(m[1]) + '” is hidden from the website.'; }],
+    [/^“([\s\S]+)” படம் சேமிக்கப்பட்டது\. இணையதளத்தில் சில நிமிடங்களில் தெரியும்\.$/, function(m){ return '“' + pn(m[1]) + '” photo saved. It will show on the website in a few minutes.'; }],
+    [/^“([\s\S]+)” படம் நீக்கப்பட்டது\.$/, function(m){ return '“' + pn(m[1]) + '” photo removed.'; }],
     [/^“([\s\S]+)” நீக்கப்பட்டது\.$/, function(m){ return '“' + pn(m[1]) + '” deleted.'; }],
     [/^“([\s\S]+)” புதிய விலை (₹[\d,.]+) சேமிக்கப்பட்டது\.$/, function(m){ return '“' + pn(m[1]) + '” new price ' + m[2] + ' saved.'; }],
     [/^(.+) பொருட்களின் விலை ([\d.]+)% (ஏறும்|குறையும்)\. உறுதி செய்ய மீண்டும் அதே பட்டனை அழுத்தவும்\.$/, function(m){
