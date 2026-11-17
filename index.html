@@ -303,7 +303,7 @@ function card(o){
   if (o.items) c.appendChild(el('div','items', o.items));
   var t = el('div','row'); t.appendChild(el('span','tot','மொத்தம்: '+money(o.total) + (Number(o.fee) ? '  (டெலிவரி '+money(o.fee)+')' : '')));
   c.appendChild(t);
-  c.appendChild(el('div','pay', 'பணம்: ' + (o.pay||'-') + (o.utr ? '  ·  UTR: '+o.utr : '') + (o.note ? '\nகுறிப்பு: '+o.note : '')));
+  c.appendChild(el('div','pay', 'பணம்: ' + (o.pay||'-') + (o.payer ? '  ·  UPI ID: '+o.payer : '') + (o.utr ? '  ·  UTR: '+o.utr : '') + (o.note ? '\nகுறிப்பு: '+o.note : '')));
   var acts = el('div','acts'), d = digits(o.phone);
   if (d){
     var call = el('a','a call','📞 அழை'); call.href='tel:+91'+d; acts.appendChild(call);
@@ -340,7 +340,7 @@ function setStatus(o, s){
     .setStatus(o.id, s);
 }
 // ===== பில் PDF (வாடிக்கையாளர் பெறும் அதே வடிவம்) =====
-var SITE = 'https://inimaifoodss-web.github.io/inimai-foods/', SHOP_WA = '917904050386';
+var SITE = 'https://inimaifoodss-web.github.io/inimai-foods/', SHOP_WA = '918973230822';
 function loadScript(src){ return new Promise(function(res,rej){ var s=document.createElement('script'); s.src=src; s.onload=res; s.onerror=rej; document.head.appendChild(s); }); }
 function css(tag, style, text){ var e=document.createElement(tag); if(style) e.style.cssText=style; if(text!=null) e.textContent=text; return e; }
 function parseItems(txt){
@@ -383,7 +383,7 @@ function billNode(o){
   var info = css('div','border:'+B+';border-radius:10px;padding:12px 14px');
   var rows = [['பெயர்: ',o.name],['மொபைல்: ',o.phone],['முகவரி: ',o.address]];
   if (o.date) rows.push(['டெலிவரி தேதி: ',o.date]); if (o.note) rows.push(['குறிப்பு: ',o.note]);
-  rows.push(['பணம்: ',o.pay||'-']); if (o.utr) rows.push(['UTR: ',o.utr]);
+  rows.push(['பணம்: ',o.pay||'-']); if (o.payer) rows.push(['UPI ID: ',o.payer]); if (o.utr) rows.push(['UTR: ',o.utr]);
   rows.forEach(function(r){ var x=css('div','white-space:pre-wrap'); x.appendChild(css('b',null,r[0])); x.appendChild(document.createTextNode(r[1])); info.appendChild(x); });
   d.appendChild(info);
   d.appendChild(css('div','text-align:center;margin-top:18px;color:'+M+';font-weight:600','நன்றி! மீண்டும் வருக.'));
