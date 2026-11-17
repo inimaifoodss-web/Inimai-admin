@@ -39,7 +39,7 @@ body{padding-bottom:64px}
       .then(function(r){ return r.json(); }, function(){ throw {code:'net', message:'இணைய இணைப்பு இல்லை. மீண்டும் முயற்சிக்கவும்.'}; })
       .then(function(j){ if (j && j.ok) return j.result; throw {code: j && j.code, message: (j && j.error) || 'Google script பழைய version-ல் உள்ளது. Setup வழிகாட்டியிலிருந்து புதிய code-ஐ paste செய்து New version deploy செய்யவும்.'}; });
   }
-  var FNS = ['getOrders','setStatus','getProducts','saveProduct','deleteProduct','changePrice','bulkPrice','uploadPhoto','removePhoto','getShops','setShopStatus'];
+  var FNS = ['getOrders','setStatus','getProducts','saveProduct','deleteProduct','changePrice','bulkPrice','uploadPhoto','removePhoto','getShops','setShopStatus','getBanner','addBanner','saveBanner','moveBanner','removeBanner'];
   function runner(){
     var ok, fail, r = {withSuccessHandler:function(f){ ok=f; return r; }, withFailureHandler:function(f){ fail=f; return r; }};
     FNS.forEach(function(n){ r[n] = function(){
@@ -138,7 +138,11 @@ header small{display:block;font-weight:400;opacity:.85;font-size:12px}
 .bmsg{font-size:13px;color:var(--g);flex-basis:100%}
 .bmsg a{color:var(--b)}
 .upd{font-size:12px;color:var(--mu);text-align:right;margin-top:6px}
-.tabs{display:grid;grid-template-columns:1fr 1.25fr 1fr;gap:8px;margin-bottom:12px}
+.tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+@media (min-width:700px){.tabs{grid-template-columns:repeat(4,1fr)}}
+.bimg{width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:12px;border:1px solid var(--line);display:block;background:var(--cream)}
+.brow .num{font-weight:800;color:var(--m)}
+.bacts{display:flex;flex-wrap:wrap;gap:8px}.bacts .a{flex:1 1 auto}
 .tab{padding:0 6px;line-height:1.2}
 .shop .kv{font-size:14px;color:var(--ink);line-height:1.5;white-space:pre-line}
 .shop .kv small{color:var(--mu)}
@@ -205,7 +209,21 @@ header small{display:block;font-weight:400;opacity:.85;font-size:12px}
     <button class="tab" type="button" data-tab="orders" aria-pressed="true">ஆர்டர்கள்</button>
     <button class="tab" type="button" data-tab="products" aria-pressed="false">பொருட்கள் / விலை</button>
     <button class="tab" type="button" data-tab="shops" aria-pressed="false" id="shopTab">கடைகள்</button>
+    <button class="tab" type="button" data-tab="banner" aria-pressed="false">நகரும் படம்</button>
   </div>
+  <section id="vBanner" hidden>
+    <p class="note" style="padding:4px 4px 10px;text-align:left">இணையதள முகப்பில் மாறி மாறி வரும் படங்கள். மேலிருந்து கீழ் வரிசையில் வரும். உங்கள் சொந்த படங்களை மட்டும் சேர்க்கவும்.</p>
+    <div class="bulk">
+      <h2>+ புதிய படம் சேர்</h2>
+      <div class="f">
+        <label>படத்தின் கீழ் வரும் பெயர் (தமிழ்)<input id="bnName" maxlength="60"></label>
+        <label>Name (English)<input id="bnEn" maxlength="60"></label>
+      </div>
+      <button class="a pri" type="button" id="bnAdd">📷 போனிலிருந்து படம் தேர்வு செய்து சேர்</button>
+      <div class="phmsg" id="bnMsg" role="status"></div>
+    </div>
+    <div class="list" id="blist"><div class="note">ஏற்றுகிறது…</div></div>
+  </section>
   <section id="vShops" hidden>
     <p class="note" style="padding:4px 4px 10px;text-align:left">புதிதாகப் பதிவு செய்த கடைகள் “காத்திருப்பு” நிலையில் இருக்கும். நீங்கள் “அனுமதி கொடு” அழுத்திய பிறகுதான் அவர்களுக்கு விலையும் ஆர்டரும் தெரியும்.</p>
     <div class="chips" id="sfilters" role="group" aria-label="நிலை"></div>
@@ -440,7 +458,8 @@ var PRODUCTS = null, EDIT = null, PQ = '', DELASK = null, PHMSG = null, RMASK = 
 function catName(id){ var c = CATS.filter(function(x){return x[0]===id;})[0]; return c ? c[1] : id; }
 document.querySelectorAll('[data-tab]').forEach(function(b){ b.addEventListener('click', function(){
   document.querySelectorAll('[data-tab]').forEach(function(x){ x.setAttribute('aria-pressed', x===b); });
-  var v = b.dataset.tab; $('vOrders').hidden = v!=='orders'; $('vProducts').hidden = v!=='products'; $('vShops').hidden = v!=='shops';
+  var v = b.dataset.tab; $('vOrders').hidden = v!=='orders'; $('vProducts').hidden = v!=='products'; $('vShops').hidden = v!=='shops'; $('vBanner').hidden = v!=='banner';
+  if (v==='banner') loadBanner();
   if (v==='products' && !PRODUCTS) loadProducts();
   if (v==='shops') loadShops();
 }); });
@@ -734,6 +753,55 @@ function setShop(x, key){
 }
 loadShops();
 
+// ===== நகரும் படம் (முகப்பு banner) =====
+var BANNER = null, BBUSY = false, BASK = null, BMSG = {};
+function loadBanner(){
+  google.script.run.withSuccessHandler(function(l){ BANNER = l || []; renderBanner(); })
+    .withFailureHandler(function(e){ showErr('படங்களை ஏற்ற முடியவில்லை: ' + (e && e.message || e)); }).getBanner();
+}
+function bcall(fn, args, done){
+  BBUSY = true; renderBanner();
+  var r = google.script.run.withSuccessHandler(function(x){ BBUSY = false; if (done) done(x); renderBanner(); })
+    .withFailureHandler(function(e){ BBUSY = false; renderBanner(); showErr('மாற்ற முடியவில்லை: ' + (e && e.message || e)); });
+  r[fn].apply(r, args);
+}
+function renderBanner(){
+  var box = $('blist'); box.innerHTML = '';
+  if (!BANNER){ box.appendChild(el('div','note','ஏற்றுகிறது…')); return; }
+  if (!BANNER.length){ box.appendChild(el('div','empty','இன்னும் படம் இல்லை. மேலே "படம் தேர்வு செய்து சேர்" அழுத்துங்கள்.')); return; }
+  BANNER.forEach(function(b, i){
+    var c = el('div','prow brow' + (b.on ? '' : ' off'));
+    var top = el('div','ptop'); top.appendChild(el('span','num', (i+1) + ' / ' + BANNER.length)); top.appendChild(el('span','badge ' + (b.on ? 's2' : 's3'), b.on ? 'காட்டப்படுகிறது' : 'மறைவு')); c.appendChild(top);
+    var im = document.createElement('img'); im.className = 'bimg'; im.src = b.img; im.alt = ''; im.loading = 'lazy'; c.appendChild(im);
+    var f = el('div','f'), l1 = el('label', null, 'பெயர் (தமிழ்)'), i1 = document.createElement('input'), l2 = el('label', null, 'Name (English)'), i2 = document.createElement('input');
+    i1.value = b.name; i1.maxLength = 60; i2.value = b.en; i2.maxLength = 60; i1.setAttribute('data-noi18n',''); i2.setAttribute('data-noi18n','');
+    l1.appendChild(i1); l2.appendChild(i2); f.appendChild(l1); f.appendChild(l2); c.appendChild(f);
+    var a = el('div','bacts');
+    function btn(t, cls, fn, dis){ var x = el('button','a ' + (cls||''), t); x.type = 'button'; x.disabled = BBUSY || !!dis; x.addEventListener('click', fn); a.appendChild(x); return x; }
+    btn('▲ மேலே', '', function(){ bcall('moveBanner', [b.id, -1], function(){ BANNER.splice(i-1, 0, BANNER.splice(i, 1)[0]); }); }, i===0);
+    btn('▼ கீழே', '', function(){ bcall('moveBanner', [b.id, 1], function(){ BANNER.splice(i+1, 0, BANNER.splice(i, 1)[0]); }); }, i===BANNER.length-1);
+    btn('💾 பெயர் சேமி', 'pri', function(){ var n = i1.value.trim(), e = i2.value.trim(); bcall('saveBanner', [b.id, n, e, b.on], function(){ b.name = n; b.en = e; BMSG[b.id] = 'சேமிக்கப்பட்டது ✓'; }); });
+    btn(b.on ? 'மறை' : 'காட்டு', '', function(){ var on = !b.on; bcall('saveBanner', [b.id, b.name, b.en, on], function(){ b.on = on; }); });
+    btn(BASK===b.id ? 'உறுதியாக நீக்கவா?' : '✕ நீக்கு', 'del', function(){
+      if (BASK !== b.id){ BASK = b.id; renderBanner(); return; }
+      BASK = null; bcall('removeBanner', [b.id], function(){ BANNER = BANNER.filter(function(x){ return x.id !== b.id; }); });
+    });
+    c.appendChild(a);
+    if (BMSG[b.id]){ c.appendChild(el('div','phmsg', BMSG[b.id])); delete BMSG[b.id]; }
+    box.appendChild(c);
+  });
+}
+$('bnAdd').addEventListener('click', function(){
+  var m = $('bnMsg'), btn = this;
+  choosePhoto(function(data){
+    btn.disabled = true; m.className = 'phmsg'; m.textContent = 'படம் பதிவேற்றுகிறது…';
+    google.script.run.withSuccessHandler(function(b){
+      btn.disabled = false; (BANNER = BANNER || []).push(b); $('bnName').value = ''; $('bnEn').value = '';
+      m.textContent = 'படம் சேர்க்கப்பட்டது ✓. இணையதளத்தில் கடைசியாக வரும் (▲ அழுத்தி வரிசை மாற்றலாம்).'; renderBanner();
+    }).withFailureHandler(function(e){ btn.disabled = false; m.className = 'phmsg bad'; m.textContent = 'படம் சேமிக்க முடியவில்லை: ' + (e && e.message || e); })
+      .addBanner(data, $('bnName').value.trim(), $('bnEn').value.trim());
+  }, function(t){ m.className = 'phmsg bad'; m.textContent = t; });
+});
 // ===== Excel (CSV) பதிவிறக்கம்: திரையில் தெரியும் பட்டியல் (காலம் + நிலை + தேடல்) =====
 var SHOWN = [], SHOWNF = 'all', SSHOWN = [];
 function csvCell(v){
@@ -826,11 +894,17 @@ setInterval(function(){ if (!document.hidden && !Object.keys(busy).length && !$(
     '✓ அனுமதி கொடுக்கப்பட்டது. கடைக்கு WhatsApp-ல் தெரிவிக்க மேலே உள்ள WhatsApp பட்டனை அழுத்துங்கள்.':'✓ Approved. Tap the WhatsApp button above to tell the shop.',
     'கடை நீக்கப்பட்டது. இனி அவர்களுக்கு விலையும் ஆர்டரும் தெரியாது.':'Shop removed. They can no longer see prices or order.',
     'கடை கிடைக்கவில்லை':'Shop not found',
+    'நகரும் படம்':'Moving images', 'இணையதள முகப்பில் மாறி மாறி வரும் படங்கள். மேலிருந்து கீழ் வரிசையில் வரும். உங்கள் சொந்த படங்களை மட்டும் சேர்க்கவும்.':'Photos that slide on the website home page, in this order from top to bottom. Use only your own photos.',
+    '+ புதிய படம் சேர்':'+ Add new photo', 'படத்தின் கீழ் வரும் பெயர் (தமிழ்)':'Name shown on the photo (Tamil)', '📷 போனிலிருந்து படம் தேர்வு செய்து சேர்':'📷 Choose photo from phone and add',
+    'இன்னும் படம் இல்லை. மேலே "படம் தேர்வு செய்து சேர்" அழுத்துங்கள்.':'No photos yet. Tap "Choose photo and add" above.', 'காட்டப்படுகிறது':'Shown',
+    'பெயர் (தமிழ்)':'Name (Tamil)', '▲ மேலே':'▲ Up', '▼ கீழே':'▼ Down', '💾 பெயர் சேமி':'💾 Save name', 'சேமிக்கப்பட்டது ✓':'Saved ✓',
+    'படம் சேர்க்கப்பட்டது ✓. இணையதளத்தில் கடைசியாக வரும் (▲ அழுத்தி வரிசை மாற்றலாம்).':'Photo added ✓. It comes last on the website (tap ▲ to change the order).',
+    'படம் கிடைக்கவில்லை':'Photo not found',
     '⬇ Excel-ல் பதிவிறக்கு (திரையில் உள்ளவை)':'⬇ Download Excel (what is shown)', 'பதிவிறக்க ஆர்டர் இல்லை.':'No orders to download.',
     'பதிவிறக்க கடை இல்லை.':'No shops to download.',
     'படம் மிகப் பெரியது (4 MB-க்கு மேல்).':'Photo is too large (over 4 MB).', 'சதவீதம் -90 முதல் 200 வரை இருக்க வேண்டும்':'Percent must be between -90 and 200'
   };
-  var ERR = {'ஆர்டர்களை ஏற்ற முடியவில்லை':'Could not load orders', 'கடைகளை ஏற்ற முடியவில்லை':'Could not load shops', 'கடை நிலையை மாற்ற முடியவில்லை':'Could not change shop status', 'நிலையை மாற்ற முடியவில்லை':'Could not change status',
+  var ERR = {'ஆர்டர்களை ஏற்ற முடியவில்லை':'Could not load orders', 'கடைகளை ஏற்ற முடியவில்லை':'Could not load shops', 'படங்களை ஏற்ற முடியவில்லை':'Could not load photos', 'கடை நிலையை மாற்ற முடியவில்லை':'Could not change shop status', 'நிலையை மாற்ற முடியவில்லை':'Could not change status',
     'பொருட்களை ஏற்ற முடியவில்லை':'Could not load products', 'சேமிக்க முடியவில்லை':'Could not save', 'மாற்ற முடியவில்லை':'Could not change',
     'நீக்க முடியவில்லை':'Could not delete', 'விலை சேமிக்க முடியவில்லை':'Could not save the price', 'படம் சேமிக்க முடியவில்லை':'Could not save the photo', 'படம்':'Photo'};
   var TA = /[஀-௿]/;
@@ -857,6 +931,7 @@ setInterval(function(){ if (!document.hidden && !Object.keys(busy).length && !$(
     [/^விலை ₹(\d+) (குறை|ஏற்று)$/, function(m){ return (m[2] === 'குறை' ? 'Lower' : 'Raise') + ' price by ₹' + m[1]; }],
     [/^([^:]+): ([\s\S]*)$/, function(m){ return ERR[m[1]] ? ERR[m[1]] + ': ' + tr(m[2]) : null; }],
     [/^(\d+) வரிசை பதிவிறக்கம் ஆனது\. வரவில்லை என்றால்$/, function(m){ return m[1] + ' rows downloaded. If not,'; }],
+    [/^(\d+) \/ (\d+)$/, function(m){ return m[1] + ' / ' + m[2]; }],
     [/^பதிவு: ([\s\S]*)$/, function(m){ return 'Registered: ' + m[1]; }],
     [/^டெலிவரி: ([\s\S]*)$/, function(m){ return 'Delivery: ' + m[1]; }],
     [/^பணம்: ([\s\S]*)$/, function(m){ return 'Payment: ' + m[1].replace(/\nகுறிப்பு: /, '\nNote: '); }]
