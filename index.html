@@ -59,7 +59,7 @@ body{padding-bottom:64px}
   }
   document.addEventListener('DOMContentLoaded', function(){
     var L = document.createElement('div'); L.id='login'; L.hidden = !!pin();
-    L.innerHTML = '<form id="lForm" novalidate><button type="button" class="lang langbtn" data-noi18n onclick="toggleAdminLang()">English</button><h2>இனிமை பேக்ஹவுஸ் – அட்மின்</h2><p>உங்கள் அட்மின் PIN-ஐப் போடுங்கள்.</p>'
+    L.innerHTML = '<form id="lForm" novalidate><button type="button" class="lang langbtn" data-noi18n onclick="toggleAdminLang()">English</button><h2>இனிமை ஃபுட்ஸ் – அட்மின்</h2><p>உங்கள் அட்மின் PIN-ஐப் போடுங்கள்.</p>'
       + '<input id="lPin" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" name="admin-pin" maxlength="12" aria-label="PIN" style="-webkit-text-security:disc">'
       + '<div class="e" id="lErr" role="alert"></div><button type="submit" id="lBtn">உள்ளே செல்</button>'
       + '<p class="hint">முதல் முறையா? கீழே உள்ள பட்டனை அழுத்தி Gmail மூலம் PIN அமைக்கவும்.</p>'
@@ -199,7 +199,7 @@ header small{display:block;font-weight:400;opacity:.85;font-size:12px}
 </head>
 <body>
 <header>
-  <h1>இனிமை பேக்ஹவுஸ் – அட்மின்<small id="upd">ஏற்றுகிறது…</small></h1>
+  <h1>இனிமை ஃபுட்ஸ் – அட்மின்<small id="upd">ஏற்றுகிறது…</small></h1>
   <button class="icon" id="langBtn" type="button" data-noi18n>English</button>
   <button class="icon" id="refresh" type="button">↻ புதுப்பி</button>
 </header>
@@ -345,7 +345,7 @@ function card(o){
   var acts = el('div','acts'), d = digits(o.phone);
   if (d){
     var call = el('a','a call','📞 அழை'); call.href='tel:+91'+d; acts.appendChild(call);
-    var wa = el('a','a wa','WhatsApp'); wa.href='https://wa.me/91'+d+'?text='+encodeURIComponent('இனிமை பேக்ஹவுஸ்: உங்கள் ஆர்டர் '+o.id+' – '); wa.target='_blank'; wa.rel='noopener'; acts.appendChild(wa);
+    var wa = el('a','a wa','WhatsApp'); wa.href='https://wa.me/91'+d+'?text='+encodeURIComponent('இனிமை ஃபுட்ஸ்: உங்கள் ஆர்டர் '+o.id+' – '); wa.target='_blank'; wa.rel='noopener'; acts.appendChild(wa);
   }
   var bb = el('button','a','🧾 பில் PDF'), bm = el('div','bmsg'); bb.type='button';
   bb.addEventListener('click', function(){ downloadBill(o, bb, bm); });
@@ -395,7 +395,7 @@ function billNode(o){
   var M='#7A1532', G='#1E7B34', B='1px solid #EADBC8';
   var d = css('div','position:fixed;left:-10000px;top:0;width:600px;padding:32px;background:#fff;color:#22140C;font-family:"Noto Sans Tamil",sans-serif;font-size:15px;line-height:1.5');
   var h = css('div','display:flex;align-items:center;justify-content:space-between;border-bottom:3px solid '+M+';padding-bottom:12px');
-  var hl = css('div'); hl.appendChild(css('div','font-family:"Baloo Thambi 2",sans-serif;font-weight:800;font-size:30px;color:'+M+';line-height:1.1',(window.BILL_BRAND||'இனிமை பேக்ஹவுஸ்')));
+  var hl = css('div'); hl.appendChild(css('div','font-family:"Baloo Thambi 2",sans-serif;font-weight:800;font-size:30px;color:'+M+';line-height:1.1',(window.BILL_BRAND||'இனிமை ஃபுட்ஸ்')));
   hl.appendChild(css('div','color:'+G+';font-weight:600;font-size:14px','தரத்தின் அடையாளம், சுவையின் தனித்துவம்!')); h.appendChild(hl);
   var lg = document.createElement('img'); lg.crossOrigin='anonymous'; lg.src=SITE+'logo.png'; lg.style.cssText='height:64px;width:auto'; lg.onerror=function(){ lg.remove(); }; h.appendChild(lg);
   d.appendChild(h);
@@ -431,7 +431,7 @@ function billNode(o){
 function downloadBill(o, btn, msg){
   btn.disabled = true; msg.textContent = 'பில் தயாராகிறது…';
   var node = billNode(o); document.body.appendChild(node);
-  var fname = 'Inimai-Bakehouse-Bill-' + o.id + '.pdf';
+  var fname = 'Inimai-Foods-Bill-' + o.id + '.pdf';
   Promise.all([
     window.html2canvas ? 0 : loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js'),
     window.jspdf ? 0 : loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'),
@@ -723,7 +723,7 @@ function shopCard(x){
   var acts = el('div','acts');
   var call = el('a','a call','📞 அழை'); call.href = 'tel:+91' + x.phone; acts.appendChild(call);
   var txt = x.status==='approved' ? 'வணக்கம் ' + x.owner + '! உங்கள் கடை "' + x.shop + '" இனிமை பேக்ஹவுஸில் அனுமதிக்கப்பட்டது ✓. இப்போது விலை பார்த்து ஆர்டர் செய்யலாம்: ' + SITE
-    : 'வணக்கம் ' + x.owner + '! இனிமை பேக்ஹவுஸ் – உங்கள் கடை பதிவு பற்றி: ';
+    : 'வணக்கம் ' + x.owner + '! இனிமை ஃபுட்ஸ் – உங்கள் கடை பதிவு பற்றி: ';
   var wa = el('a','a wa','WhatsApp'); wa.href = 'https://wa.me/91' + x.phone + '?text=' + encodeURIComponent(txt); wa.target='_blank'; wa.rel='noopener'; acts.appendChild(wa);
   if (x.map){ var mp = el('a','a','📍 வரைபடம்'); mp.href = x.map; mp.target='_blank'; mp.rel='noopener'; acts.appendChild(mp); }
   c.appendChild(acts);
@@ -840,7 +840,7 @@ setInterval(function(){ if (!document.hidden && !Object.keys(busy).length && !$(
   var KEY = 'inimai_admin_lang', LANG = 'ta';
   try { if (localStorage.getItem(KEY) === 'en') LANG = 'en'; } catch(e){}
   var D = {
-    'இனிமை பேக்ஹவுஸ் – அட்மின்':'Inimai Bakehouse – Admin', 'ஏற்றுகிறது…':'Loading…', '↻ புதுப்பி':'↻ Refresh',
+    'இனிமை ஃபுட்ஸ் – அட்மின்':'Inimai Foods – Admin', 'ஏற்றுகிறது…':'Loading…', '↻ புதுப்பி':'↻ Refresh',
     'பகுதி':'Section', 'ஆர்டர்கள்':'Orders', 'பொருட்கள் / விலை':'Products / Prices', 'காலம்':'Period',
     'இன்று':'Today', '7 நாள்':'7 days', 'இந்த மாதம்':'This month', 'எல்லாம்':'All',
     'மொத்த ஆர்டர்கள்':'Total orders', 'ஆர்டர் செய்தவர்கள்':'Customers', 'டெலிவரி ஆனது':'Delivered',
@@ -985,7 +985,7 @@ setInterval(function(){ if (!document.hidden && !Object.keys(busy).length && !$(
   }
   function apply(){
     document.documentElement.lang = LANG;
-    document.title = LANG === 'en' ? 'Inimai Bakehouse – Admin' : 'இனிமை பேக்ஹவுஸ் – அட்மின்';
+    document.title = LANG === 'en' ? 'Inimai Foods – Admin' : 'இனிமை ஃபுட்ஸ் – அட்மின்';
     document.querySelectorAll('.langbtn,#langBtn').forEach(function(b){ b.textContent = LANG === 'en' ? 'தமிழ்' : 'English'; });
     walk(document.body);
   }

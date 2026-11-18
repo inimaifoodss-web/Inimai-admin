@@ -1,3 +1,3 @@
-# Inimai Bakehouse – Admin
+# Inimai Foods – Admin
 
-Inimai Bakehouse owner-only admin app (PIN). Not linked from the customer site.
+Inimai Foods owner-only admin app (PIN). Not linked from the customer site.
